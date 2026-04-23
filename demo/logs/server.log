@@ -1,0 +1,30 @@
+2026-04-24 01:10:19,102 [aegis.cli] INFO: Added route: 10.10.0.2 -> 10.10.0.1
+2026-04-24 01:10:19,113 [aegis.transport] INFO: Server listening on 127.0.0.1:5555
+2026-04-24 01:10:19,114 [aegis.cli] INFO: Server started on 127.0.0.1:5555
+2026-04-24 01:10:19,115 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-24 01:10:19,116 [aegis.tunnel] INFO: Tunnel started
+2026-04-24 01:10:24,440 [aegis.transport] INFO: Session established with ('127.0.0.1', 51242) (session bc0b90b9)
+2026-04-24 01:10:57,957 [aegis.cli] INFO: Added route: 10.10.0.2 -> 10.10.0.1
+2026-04-24 01:10:57,968 [aegis.transport] INFO: Server listening on 127.0.0.1:5555
+2026-04-24 01:10:57,968 [aegis.cli] INFO: Server started on 127.0.0.1:5555
+2026-04-24 01:10:57,969 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-24 01:10:57,970 [aegis.tunnel] INFO: Tunnel started
+2026-04-24 01:11:01,491 [aegis.transport] INFO: Session established with ('127.0.0.1', 56661) (session 31b3954b)
+2026-04-24 01:11:40,999 [aegis.cli] INFO: Added route: 10.10.0.2 -> 10.10.0.1
+2026-04-24 01:11:41,016 [aegis.transport] INFO: Server listening on 127.0.0.1:5555
+2026-04-24 01:11:41,016 [aegis.cli] INFO: Server started on 127.0.0.1:5555
+2026-04-24 01:11:41,018 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-24 01:11:41,020 [aegis.tunnel] INFO: Tunnel started
+2026-04-24 01:11:47,931 [aegis.transport] INFO: Session established with ('127.0.0.1', 49668) (session e730b6bb)
+2026-04-24 01:14:18,409 [aegis.cli] INFO: Added route: 10.10.0.2 -> 10.10.0.1
+2026-04-24 01:14:18,422 [aegis.transport] INFO: Server listening on 127.0.0.1:5555
+2026-04-24 01:14:18,424 [aegis.cli] INFO: Server started on 127.0.0.1:5555
+2026-04-24 01:14:18,425 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-24 01:14:18,425 [aegis.tunnel] INFO: Tunnel started
+2026-04-24 01:14:21,349 [aegis.transport] INFO: Session established with ('127.0.0.1', 63345) (session 890547a5)
+2026-04-24 01:17:43,906 [aegis.cli] INFO: Added route: 10.10.0.2 -> 10.10.0.1
+2026-04-24 01:17:43,918 [aegis.transport] INFO: Server listening on 127.0.0.1:5555
+2026-04-24 01:17:43,919 [aegis.cli] INFO: Server started on 127.0.0.1:5555
+2026-04-24 01:17:43,920 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-24 01:17:43,920 [aegis.tunnel] INFO: Tunnel started
+2026-04-24 01:17:47,505 [aegis.transport] INFO: Session established with ('127.0.0.1', 62367) (session 11660351)

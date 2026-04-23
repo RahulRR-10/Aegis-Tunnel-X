@@ -16,12 +16,24 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import io
 import logging
 import os
 import signal
 import sys
 from pathlib import Path
 from typing import Any
+
+# Force UTF-8 output on Windows to avoid cp1252 crashes when output is
+# redirected by Start-Process.  This must run before any print().
+if sys.stdout.encoding != "utf-8":
+    sys.stdout = io.TextIOWrapper(
+        sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True
+    )
+if sys.stderr.encoding != "utf-8":
+    sys.stderr = io.TextIOWrapper(
+        sys.stderr.buffer, encoding="utf-8", errors="replace", line_buffering=True
+    )
 
 from aegis.config import AegisConfig
 
@@ -56,8 +68,8 @@ def cmd_keygen(args: argparse.Namespace) -> None:
 
     x25519_priv_path.write_bytes(x25519_priv_bytes)
     x25519_pub_path.write_bytes(x25519_pub_bytes)
-    print(f"  ✓ X25519 private key → {x25519_priv_path}")
-    print(f"  ✓ X25519 public key  → {x25519_pub_path}")
+    print(f"  [OK] X25519 private key -> {x25519_priv_path}")
+    print(f"  [OK] X25519 public key  -> {x25519_pub_path}")
 
     # Kyber-768 keypair (if liboqs available)
     if OQS_AVAILABLE:
@@ -70,12 +82,12 @@ def cmd_keygen(args: argparse.Namespace) -> None:
         kyber_pub_path = output_dir / "kyber_pub.bin"
         kyber_priv_path.write_bytes(priv)
         kyber_pub_path.write_bytes(pub)
-        print(f"  ✓ Kyber-768 private key → {kyber_priv_path}")
-        print(f"  ✓ Kyber-768 public key  → {kyber_pub_path}")
+        print(f"  [OK] Kyber-768 private key -> {kyber_priv_path}")
+        print(f"  [OK] Kyber-768 public key  -> {kyber_pub_path}")
         kem.free()
     else:
-        print("  ⚠ liboqs not available — Kyber-768 keys skipped")
-        print("    Set OQS_INSTALL_PATH and ensure oqs.dll is in bin/")
+        print("  [!!] liboqs not available -- Kyber-768 keys skipped")
+        print("       Set OQS_INSTALL_PATH and ensure oqs.dll is in bin/")
 
     print(f"\nKeys saved to: {output_dir}")
 
@@ -90,7 +102,7 @@ def cmd_profile_list(args: argparse.Namespace) -> None:
     profiles = MorphicEngine.list_profiles()
     print("Available morphic profiles:")
     for p in profiles:
-        print(f"  • {p}")
+        print(f"  - {p}")
 
 
 def cmd_profile_set(args: argparse.Namespace) -> None:
@@ -100,10 +112,10 @@ def cmd_profile_set(args: argparse.Namespace) -> None:
     from aegis.morphic import MorphicEngine
     try:
         engine = MorphicEngine(name)
-        print(f"✓ Profile '{name}' is valid and can be loaded.")
+        print(f"[OK] Profile '{name}' is valid and can be loaded.")
         print(f"  Peaks: {engine.current_profile.get('packet_size_distribution', {}).get('peaks')}")
     except FileNotFoundError:
-        print(f"✗ Profile '{name}' not found.")
+        print(f"[X] Profile '{name}' not found.")
         sys.exit(1)
 
 
@@ -121,12 +133,12 @@ def cmd_server(args: argparse.Namespace) -> None:
     _setup_logging(cfg)
     cfg.ensure_dirs()
 
-    print("╔══════════════════════════════════════════════════╗")
-    print("║            AEGIS-TUNNEL X  —  SERVER             ║")
-    print("╚══════════════════════════════════════════════════╝")
-    print(f"  Listen:  {cfg.listen.host}:{cfg.listen.port}")
-    print(f"  TUN:     {cfg.tun.name} ({cfg.tun.ip} ↔ {cfg.tun.peer_ip})")
-    print(f"  Profile: {cfg.morphic.profile}")
+    print("=" * 52)
+    print("          AEGIS-TUNNEL X  --  SERVER")
+    print("=" * 52)
+    print(f"  Listen:   {cfg.listen.host}:{cfg.listen.port}")
+    print(f"  TUN:      {cfg.tun.name} ({cfg.tun.ip} <-> {cfg.tun.peer_ip})")
+    print(f"  Profile:  {cfg.morphic.profile}")
     print(f"  Feedback: {'enabled' if cfg.feedback.enabled else 'disabled'}")
     print()
 
@@ -143,12 +155,12 @@ def cmd_client(args: argparse.Namespace) -> None:
     _setup_logging(cfg)
     cfg.ensure_dirs()
 
-    print("╔══════════════════════════════════════════════════╗")
-    print("║            AEGIS-TUNNEL X  —  CLIENT             ║")
-    print("╚══════════════════════════════════════════════════╝")
-    print(f"  Connect: {cfg.connect.host}:{cfg.connect.port}")
-    print(f"  TUN:     {cfg.tun.name} ({cfg.tun.ip} ↔ {cfg.tun.peer_ip})")
-    print(f"  Profile: {cfg.morphic.profile}")
+    print("=" * 52)
+    print("          AEGIS-TUNNEL X  --  CLIENT")
+    print("=" * 52)
+    print(f"  Connect:  {cfg.connect.host}:{cfg.connect.port}")
+    print(f"  TUN:      {cfg.tun.name} ({cfg.tun.ip} <-> {cfg.tun.peer_ip})")
+    print(f"  Profile:  {cfg.morphic.profile}")
     print()
 
     asyncio.run(_run_tunnel(cfg))
@@ -156,27 +168,30 @@ def cmd_client(args: argparse.Namespace) -> None:
 
 async def _run_tunnel(cfg: AegisConfig) -> None:
     """Orchestrate TUN + transport + morphic + feedback."""
+    import json as _json
+
     from aegis.tun import TunInterface
     from aegis.transport import AegisTunnelServer, AegisTunnelClient
     from aegis.tunnel import AegisTunnel
     from aegis.morphic import MorphicEngine
     from aegis.feedback import TrafficAnalyzer, FeedbackLoop
 
+    # Status file for `aegis status` to read
+    status_file = Path.home() / ".aegis" / "status.json"
+    status_file.parent.mkdir(parents=True, exist_ok=True)
+
     # TUN interface
-    tun = TunInterface(
-        name=cfg.tun.name,
-        ip=cfg.tun.ip,
-        peer_ip=cfg.tun.peer_ip,
-        mtu=cfg.tun.mtu,
-    )
+    tun = TunInterface(name=cfg.tun.name, mtu=cfg.tun.mtu)
+    tun.ip = cfg.tun.ip
+    tun.peer_ip = cfg.tun.peer_ip
     tun.open()
+    _add_peer_route(cfg)
 
     # Transport
     if cfg.mode == "server":
         transport = AegisTunnelServer(cfg.listen.host, cfg.listen.port)
         await transport.start()
         logger.info("Server started on %s:%d", cfg.listen.host, cfg.listen.port)
-        # Wait for a client to connect
         print("  Waiting for client connection...")
     else:
         transport = AegisTunnelClient(cfg.connect.host, cfg.connect.port)
@@ -190,6 +205,7 @@ async def _run_tunnel(cfg: AegisConfig) -> None:
     )
 
     # Feedback loop
+    analyzer = None
     feedback = None
     feedback_task = None
     if cfg.feedback.enabled:
@@ -216,13 +232,52 @@ async def _run_tunnel(cfg: AegisConfig) -> None:
     try:
         loop.add_signal_handler(signal.SIGINT, _signal_handler)
     except NotImplementedError:
-        # Windows doesn't support add_signal_handler for SIGINT in some cases
         pass
 
-    # Run tunnel in background
-    tunnel_task = asyncio.create_task(tunnel.run())
+    # Status writer task — updates ~/.aegis/status.json every second
+    async def _write_status() -> None:
+        import time as _time
+        start_time = _time.time()
+        while not stop_event.is_set():
+            try:
+                stats = tunnel.packet_stats
+                det_score = "N/A"
+                if analyzer is not None:
+                    try:
+                        profile = morphic.current_profile
+                        det_score = f"{analyzer.detection_score(profile):.4f}"
+                    except Exception:
+                        det_score = "N/A"
 
-    print("  ✓ Tunnel active. Press Ctrl-C to stop.\n")
+                status = {
+                    "mode": cfg.mode,
+                    "session": "active",
+                    "uptime_s": round(_time.time() - start_time, 1),
+                    "tun_name": cfg.tun.name,
+                    "tun_ip": cfg.tun.ip,
+                    "peer_ip": cfg.tun.peer_ip,
+                    "profile": morphic._profile_name,
+                    "detection_score": det_score,
+                    "pkts_tx": stats.get("sent_count", 0),
+                    "pkts_rx": stats.get("recv_count", 0),
+                    "bytes_tx": stats.get("bytes_sent", 0),
+                    "bytes_rx": stats.get("bytes_recv", 0),
+                    "feedback_enabled": cfg.feedback.enabled,
+                    "pq_available": True,
+                }
+                status_file.write_text(
+                    _json.dumps(status, indent=2), encoding="utf-8"
+                )
+            except Exception:
+                pass
+            await asyncio.sleep(1.0)
+
+    # Run tunnel + status writer
+    tunnel_task = asyncio.create_task(tunnel.run())
+    status_task = asyncio.create_task(_write_status())
+
+    print("  [OK] Tunnel active. Press Ctrl-C to stop.")
+    print()
 
     # Wait for stop signal or tunnel completion
     try:
@@ -231,6 +286,12 @@ async def _run_tunnel(cfg: AegisConfig) -> None:
         pass
 
     # Cleanup
+    status_task.cancel()
+    try:
+        await status_task
+    except asyncio.CancelledError:
+        pass
+
     await tunnel.stop()
     if feedback:
         feedback.stop()
@@ -247,7 +308,15 @@ async def _run_tunnel(cfg: AegisConfig) -> None:
         await transport.disconnect()
 
     tun.close()
-    print("  ✓ Tunnel stopped cleanly.")
+    _remove_peer_route(cfg)
+
+    # Remove status file on clean shutdown
+    try:
+        status_file.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+    print("  [OK] Tunnel stopped cleanly.")
 
 
 # ===================================================================
@@ -255,46 +324,101 @@ async def _run_tunnel(cfg: AegisConfig) -> None:
 # ===================================================================
 
 def cmd_status(args: argparse.Namespace) -> None:
-    """Show a live status dashboard (placeholder/snapshot)."""
+    """Show live tunnel status by reading ~/.aegis/status.json."""
+    import json as _json
+    from aegis.crypto import OQS_AVAILABLE
+
+    status_file = Path.home() / ".aegis" / "status.json"
+
+    print("====================================================")
+    print("                  AEGIS-TUNNEL X                     ")
+    print("====================================================")
+
+    if status_file.exists():
+        try:
+            data = _json.loads(status_file.read_text(encoding="utf-8"))
+            mode = data.get("mode", "?").upper()
+            session = data.get("session", "unknown")
+            uptime = data.get("uptime_s", 0)
+            profile = data.get("profile", "?")
+            score = data.get("detection_score", "N/A")
+            pkts_tx = data.get("pkts_tx", 0)
+            pkts_rx = data.get("pkts_rx", 0)
+            bytes_tx = data.get("bytes_tx", 0)
+            bytes_rx = data.get("bytes_rx", 0)
+            tun_name = data.get("tun_name", "?")
+            tun_ip = data.get("tun_ip", "?")
+            peer_ip = data.get("peer_ip", "?")
+            fb = data.get("feedback_enabled", False)
+
+            print(f"  Mode:            {mode}")
+            print(f"  Session:         {session}")
+            print(f"  Uptime:          {uptime}s")
+            print(f"  TUN:             {tun_name} ({tun_ip} <-> {peer_ip})")
+            print(f"  Profile:         {profile}")
+            print(f"  Detection Score: {score}")
+            print(f"  Pkts TX/RX:      {pkts_tx} / {pkts_rx}")
+            print(f"  Bytes TX/RX:     {bytes_tx} / {bytes_rx}")
+            print(f"  Feedback:        {'enabled' if fb else 'disabled'}")
+        except Exception:
+            print("  Session:         (error reading status)")
+    else:
+        print("  Session:         (not connected)")
+        print("  Detection Score: N/A")
+        print("  Profile:         N/A")
+        print("  Pkts TX/RX:      0 / 0")
+
+    pq = "[OK] Kyber768 available" if OQS_AVAILABLE else "[X] Kyber768 unavailable"
+    print(f"  PQ Handshake:    {pq}")
+    print("====================================================")
+
+
+# ===================================================================
+# Routing helpers
+# ===================================================================
+
+def _add_peer_route(cfg: AegisConfig) -> None:
+    """Add a host route for the peer IP through the TUN adapter.
+
+    On Windows, ``netsh interface ip set address`` alone does not always
+    create the route.  We explicitly add a /32 host route so the OS
+    knows to deliver packets for the peer through the TUN adapter.
+    """
+    import subprocess
+
+    # route ADD <peer_ip> MASK 255.255.255.255 <local_tun_ip>
     try:
-        from rich.console import Console
-        from rich.panel import Panel
-        from rich.text import Text
-
-        console = Console()
-        status_text = Text()
-        status_text.append("Session: ", style="bold cyan")
-        status_text.append("(not connected)\n")
-        status_text.append("Detection Score: ", style="bold")
-        status_text.append("N/A\n")
-        status_text.append("Profile: ", style="bold")
-        status_text.append("web_browsing\n")
-        status_text.append("Pkts TX/RX: ", style="bold")
-        status_text.append("0 / 0\n")
-        status_text.append("PQ Handshake: ", style="bold")
-
-        from aegis.crypto import OQS_AVAILABLE
-        if OQS_AVAILABLE:
-            status_text.append("✓ Kyber768 available", style="green")
-        else:
-            status_text.append("✗ Kyber768 unavailable", style="red")
-
-        panel = Panel(
-            status_text,
-            title="[bold white]AEGIS-TUNNEL X[/bold white]",
-            border_style="cyan",
-            width=55,
+        subprocess.run(
+            ["route", "ADD", cfg.tun.peer_ip, "MASK", "255.255.255.255",
+             cfg.tun.ip],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
-        console.print(panel)
+        logger.info("Added route: %s -> %s", cfg.tun.peer_ip, cfg.tun.ip)
+    except subprocess.CalledProcessError as exc:
+        # Route may already exist from a previous run
+        detail = (exc.stderr or exc.stdout).strip()
+        logger.warning("Route add failed (may already exist): %s", detail)
+    except FileNotFoundError:
+        logger.warning("route command not found; skipping route setup")
 
-    except ImportError:
-        # Fallback if Rich is not installed
-        print("╔══════════════════ AEGIS-TUNNEL X ══════════════════╗")
-        print("║  Session: (not connected)                          ║")
-        print("║  Detection Score: N/A                              ║")
-        print("║  Profile: web_browsing                             ║")
-        print("║  Pkts TX/RX: 0 / 0                                 ║")
-        print("╚════════════════════════════════════════════════════╝")
+
+def _remove_peer_route(cfg: AegisConfig) -> None:
+    """Remove the peer host route on shutdown."""
+    import subprocess
+    try:
+        subprocess.run(
+            ["route", "DELETE", cfg.tun.peer_ip],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        logger.info("Removed route: %s", cfg.tun.peer_ip)
+    except FileNotFoundError:
+        pass
 
 
 # ===================================================================

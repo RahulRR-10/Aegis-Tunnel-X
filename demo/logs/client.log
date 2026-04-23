@@ -1,0 +1,25 @@
+2026-04-24 01:10:24,419 [aegis.cli] INFO: Added route: 10.10.0.1 -> 10.10.0.2
+2026-04-24 01:10:24,440 [aegis.transport] INFO: Connected to 127.0.0.1:5555
+2026-04-24 01:10:24,440 [aegis.cli] INFO: Connected to 127.0.0.1:5555
+2026-04-24 01:10:24,441 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-24 01:10:24,441 [aegis.tunnel] INFO: Tunnel started
+2026-04-24 01:11:01,475 [aegis.cli] INFO: Added route: 10.10.0.1 -> 10.10.0.2
+2026-04-24 01:11:01,490 [aegis.transport] INFO: Connected to 127.0.0.1:5555
+2026-04-24 01:11:01,491 [aegis.cli] INFO: Connected to 127.0.0.1:5555
+2026-04-24 01:11:01,492 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-24 01:11:01,493 [aegis.tunnel] INFO: Tunnel started
+2026-04-24 01:11:47,914 [aegis.cli] INFO: Added route: 10.10.0.1 -> 10.10.0.2
+2026-04-24 01:11:47,930 [aegis.transport] INFO: Connected to 127.0.0.1:5555
+2026-04-24 01:11:47,931 [aegis.cli] INFO: Connected to 127.0.0.1:5555
+2026-04-24 01:11:47,932 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-24 01:11:47,932 [aegis.tunnel] INFO: Tunnel started
+2026-04-24 01:14:21,335 [aegis.cli] INFO: Added route: 10.10.0.1 -> 10.10.0.2
+2026-04-24 01:14:21,348 [aegis.transport] INFO: Connected to 127.0.0.1:5555
+2026-04-24 01:14:21,348 [aegis.cli] INFO: Connected to 127.0.0.1:5555
+2026-04-24 01:14:21,349 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-24 01:14:21,351 [aegis.tunnel] INFO: Tunnel started
+2026-04-24 01:17:47,490 [aegis.cli] INFO: Added route: 10.10.0.1 -> 10.10.0.2
+2026-04-24 01:17:47,504 [aegis.transport] INFO: Connected to 127.0.0.1:5555
+2026-04-24 01:17:47,505 [aegis.cli] INFO: Connected to 127.0.0.1:5555
+2026-04-24 01:17:47,506 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-24 01:17:47,506 [aegis.tunnel] INFO: Tunnel started
