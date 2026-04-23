@@ -77,5 +77,5 @@ aegis-tunnel-x/
 | 4 | Tunnel Integration | ✅ Complete |
 | 5 | Morphic Engine | ✅ Complete |
 | 6 | Feedback Loop | ✅ Complete |
-| 7 | CLI & Config | ⬜ Pending |
-| 8 | Demo & E2E | ⬜ Pending |
+| 7 | CLI & Config | ✅ Complete |
+| 8 | Demo & E2E | ✅ Complete |
