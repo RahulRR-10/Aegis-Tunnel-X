@@ -1,7 +1,7 @@
 # Aegis-Tunnel X — Phase-by-Phase Build Plan
 
-> **Stack:** Python 3.11+ · `liboqs-python` (CRYSTALS-Kyber) · `cryptography` (AES-256-GCM) · `pytun` (TUN/TAP) · `asyncio` UDP · Rich (terminal UI)  
-> **Platform:** Linux (Ubuntu 22.04+) — root required for TUN interface  
+> **Stack:** Python 3.11+ · `liboqs-python` (CRYSTALS-Kyber) · `cryptography` (AES-256-GCM) · WinTUN (`ctypes`) · `asyncio` UDP · Rich (terminal UI)  
+> **Platform:** Windows 10/11 — Administrator required for TUN interface (WinTUN via `wintun.dll`)  
 > **Repo layout is established in Phase 1 and never restructured.**
 
 ---
@@ -12,7 +12,9 @@
 aegis-tunnel-x/
 ├── aegis/
 │   ├── __init__.py
-│   ├── tun.py              # Phase 1 — TUN interface
+│   ├── tun.py              # Phase 1 — platform dispatcher
+│   ├── _tun_windows.py     # Phase 1 — WinTUN ctypes adapter
+│   ├── _tun_linux.py       # Phase 1 — Linux /dev/net/tun adapter
 │   ├── crypto.py           # Phase 2 — AES-256-GCM + Kyber
 │   ├── transport.py        # Phase 3 — UDP framing & sessions
 │   ├── tunnel.py           # Phase 4 — TUN ↔ UDP glue
@@ -33,9 +35,10 @@ aegis-tunnel-x/
 │   ├── video_streaming.json
 │   └── gaming.json
 ├── demo/
-│   ├── docker-compose.yml  # Phase 8
+│   ├── run_demo.ps1        # Phase 8 — PowerShell demo script
 │   ├── server.conf
 │   └── client.conf
+├── wintun.dll              # WinTUN driver (required on Windows)
 ├── requirements.txt
 ├── setup.py
 └── README.md
@@ -43,29 +46,32 @@ aegis-tunnel-x/
 
 ---
 
-## Phase 1 — Project Scaffold & TUN Interface
+## Phase 1 — Project Scaffold & TUN Interface ✅ COMPLETED
 
-**Goal:** Bootable project; virtual network interface that captures and injects raw IP packets.
+**Goal:** Bootable project; virtual network interface that captures and injects raw IP packets.  
+**Status:** ✅ Completed using WinTUN via `ctypes` on Windows.
 
 ### 1.1 — Dependency Setup
 
 **`requirements.txt`**
 ```
 cryptography>=42.0
-pytun>=2.3
 liboqs-python>=0.10.0
-asyncio
 pyyaml>=6.0
 rich>=13.0
-pytest>=8.0
-pytest-asyncio
+pytest
+pytest-asyncio>=0.23
 ```
 
-**Install commands the agent must run:**
-```bash
-sudo apt-get install -y python3-dev liboqs-dev cmake ninja-build
+**Install commands the agent must run (PowerShell as Administrator):**
+```powershell
 pip install -r requirements.txt
 ```
+
+**Prerequisites:**
+- `wintun.dll` must be in the project root (download from https://www.wintun.net)
+- Terminal must run as **Administrator**
+- `liboqs` must be installed via `pip install liboqs-python` (ships pre-built wheels for Windows)
 
 ### 1.2 — TUN Interface Module (`aegis/tun.py`)
 
@@ -81,24 +87,26 @@ class TunInterface:
     def set_address(self, ip: str, peer_ip: str, netmask: str = "255.255.255.0") -> None
 ```
 
-**Implementation notes:**
-- Use `pytun.TunTapDevice(flags=pytun.IFF_TUN | pytun.IFF_NO_PI)` 
-- Set MTU via `tun.mtu = mtu`
-- Use `fcntl` to configure IP address if pytun helpers are unavailable
-- `read_packet` must return complete IP frames; strip 4-byte TUN header if `IFF_NO_PI` not set
+**Implementation notes (Windows / WinTUN):**
+- Load `wintun.dll` via `ctypes.WinDLL` and configure all API function signatures
+- Create adapter with `WintunCreateAdapter`, start session with `WintunStartSession`
+- Use `WintunReceivePacket` / `WintunAllocateSendPacket` + `WintunSendPacket` for I/O
+- Use `WintunGetReadWaitEvent` + `WaitForSingleObject` for blocking reads
+- Configure IP via `netsh interface ip set address` and MTU via `netsh interface ipv4 set subinterface`
+- WinTUN delivers raw IP frames directly (no TUN header to strip)
 
 ### 1.3 — Phase 1 Tests (`tests/test_tun.py`)
 
 ```
-Test 1-A: TUN device opens without error (requires root; skip if not root)
-Test 1-B: Write a crafted IP packet → immediately read it back from the same interface
-Test 1-C: MTU is correctly set (read /sys/class/net/aegis0/mtu)
-Test 1-D: close() tears down cleanly; /sys/class/net/aegis0 no longer exists
+Test 1-A: TUN device opens without error (requires Administrator; skip if not admin)
+Test 1-B: Write a crafted IP packet → read it back via socket bound to TUN IP
+Test 1-C: MTU is correctly set (read via netsh interface ipv4 show subinterfaces)
+Test 1-D: close() tears down cleanly; adapter is removed
 ```
 
 ### Phase 1 Exit Criteria
-- `pytest tests/test_tun.py` passes (root environment)
-- Manual: `ip addr show aegis0` shows correct IP after `TunInterface.open()`
+- `pytest tests/test_tun.py` passes (Administrator PowerShell)
+- Manual: `netsh interface ip show addresses name=aegis0` shows correct IP after `TunInterface.open()`
 
 ---
 
@@ -153,10 +161,12 @@ class SessionCrypto:
 ```
 
 **Implementation notes:**
-- Use `liboqs.KEM("Kyber768")` for PQ operations
+- Use `oqs.KeyEncapsulation("Kyber768")` for PQ operations (`liboqs-python` ships pre-built Windows wheels)
 - Use `cryptography.hazmat.primitives.ciphers.aead.AESGCM` for AES-256-GCM
+- Use `cryptography.hazmat.primitives.asymmetric.x25519` for X25519 DH
 - Nonces: `nonce_base XOR counter.to_bytes(12, 'big')` — never reuse
 - AAD must include session_id to prevent cross-session replay
+- Use `hmac.compare_digest` for constant-time secret comparison (never `==`)
 
 ### 2.3 — Phase 2 Tests (`tests/test_crypto.py`)
 
@@ -227,7 +237,8 @@ class AegisTunnelClient:
 ```
 
 **Implementation notes:**
-- Use `asyncio.DatagramProtocol` / `asyncio.DatagramTransport`
+- Use `asyncio.DatagramProtocol` / `asyncio.DatagramTransport` (works natively on Windows)
+- On Windows, `asyncio` uses `ProactorEventLoop` by default in Python 3.11+; UDP sockets work via `loop.create_datagram_endpoint()`
 - Handshake is 3-way: CLIENT_HELLO (kyber_ciphertext + x25519_pub) → SERVER_HELLO (kyber_pub + x25519_pub + session_id) → CLIENT_ACK
 - Keepalive: send every 25 seconds; disconnect after 3 missed keepalives
 - Replay protection: reject packets with seq numbers already in recv_window
@@ -245,7 +256,7 @@ Test 3-F: Packet frame encode → decode roundtrip preserves all header fields
 
 ### Phase 3 Exit Criteria
 - `pytest tests/test_transport.py -v` — all 6 tests pass
-- `netstat -u` shows UDP socket listening during test
+- `netstat -a -p UDP` shows UDP socket listening during test
 
 ---
 
@@ -280,6 +291,8 @@ class AegisTunnel:
 
 **Implementation notes:**
 - `_tun_to_udp` and `_udp_to_tun` run as `asyncio.create_task()`
+- TUN reads are blocking (WinTUN `WaitForSingleObject`); wrap in `loop.run_in_executor(None, tun.read_packet)` to avoid blocking the event loop
+- TUN writes are also wrapped in executor: `loop.run_in_executor(None, tun.write_packet, data)`
 - Fragment IP packets larger than (MTU - header_overhead) before encrypting
 - Reassemble fragments before TUN inject (use IP ID + frag_offset)
 - Log every packet at DEBUG level: direction, size, seq_num
@@ -296,7 +309,8 @@ Test 4-E: packet_stats correctly reflects sent/received byte counts
 
 ### Phase 4 Exit Criteria
 - `pytest tests/test_tunnel.py -v` — all 5 tests pass
-- Manual demo: `curl http://10.0.0.2/` through the tunnel returns a response
+- Manual demo: `Invoke-WebRequest http://10.10.0.2/` through the tunnel returns a response
+- Note: TUN tests require Administrator PowerShell; use `pytest.mark.skipif` for non-admin environments
 
 ---
 
@@ -482,7 +496,7 @@ tun:
   peer_ip: 10.10.0.2
   mtu: 1400
 crypto:
-  key_dir: ~/.aegis/keys
+  key_dir: ~\.aegis\keys     # Windows user profile path
 morphic:
   profile: web_browsing
   max_queue_ms: 50
@@ -492,15 +506,20 @@ feedback:
   score_threshold: 0.25
 logging:
   level: INFO
-  file: /var/log/aegis.log
+  file: ~\.aegis\aegis.log   # Windows-friendly log path
 ```
+
+**Implementation notes:**
+- Config paths use `pathlib.Path.home()` to resolve `~` cross-platform
+- `key_dir` default is `%USERPROFILE%\.aegis\keys`
+- Log directory is auto-created via `Path.mkdir(parents=True, exist_ok=True)`
 
 ### 7.2 — CLI Entry Point (`aegis/cli.py`)
 
 ```
 aegis server --config server.conf
 aegis client --config client.conf
-aegis keygen --output ~/.aegis/keys    # generate Kyber + X25519 keypair, save to dir
+aegis keygen --output ~\.aegis\keys   # generate Kyber + X25519 keypair, save to dir
 aegis status                           # show live metrics (Rich live table)
 aegis profile list                     # list available morphic profiles
 aegis profile set <name>               # hot-swap morphic profile
@@ -522,63 +541,121 @@ aegis profile set <name>               # hot-swap morphic profile
 ```
 Test 7-A: `aegis keygen` creates kyber_priv.bin, kyber_pub.bin, x25519_priv.bin, x25519_pub.bin in key_dir
 Test 7-B: Config loader correctly parses both server.conf and client.conf; raises ValueError on missing required fields
-Test 7-C: `aegis server --config server.conf` starts without error; Ctrl-C triggers clean shutdown
-Test 7-D: `aegis profile set video_streaming` while running changes morphic profile (integration test)
+Test 7-C: Config loader resolves `~` to `%USERPROFILE%` and creates key_dir if it doesn't exist
+Test 7-D: `aegis server --config server.conf` starts without error; Ctrl-C triggers clean shutdown
+Test 7-E: `aegis profile set video_streaming` while running changes morphic profile (integration test)
 ```
 
 ### Phase 7 Exit Criteria
-- `pytest tests/test_cli.py -v` — all 4 tests pass
-- `aegis status` renders correctly in a 80×24 terminal
+- `pytest tests/test_cli.py -v` — all 5 tests pass
+- `aegis status` renders correctly in a 120×30 Windows Terminal window
 
 ---
 
 ## Phase 8 — Demo Integration & End-to-End Test
 
-**Goal:** One-command demo that shows the full system working, with a visible detection score graph and profile switching.
+**Goal:** One-command demo that shows the full system working on Windows, with a visible detection score graph and profile switching.
 
-### 8.1 — Docker Compose Demo (`demo/docker-compose.yml`)
+### 8.1 — Demo Setup (Native Windows, Two Processes)
 
+Instead of Docker, the demo runs server and client as **two separate processes on the same Windows machine**, each with its own WinTUN adapter and config.
+
+**`demo/server.conf`**
 ```yaml
-version: "3.9"
-services:
-  aegis-server:
-    build: ..
-    cap_add: [NET_ADMIN]          # required for TUN
-    devices: [/dev/net/tun]
-    command: aegis server --config /demo/server.conf
-    networks:
-      aegis-net:
-        ipv4_address: 172.20.0.2
-
-  aegis-client:
-    build: ..
-    cap_add: [NET_ADMIN]
-    devices: [/dev/net/tun]
-    command: aegis client --config /demo/client.conf
-    depends_on: [aegis-server]
-    networks:
-      aegis-net:
-        ipv4_address: 172.20.0.3
-
-networks:
-  aegis-net:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/24
+mode: server
+listen:
+  host: 127.0.0.1
+  port: 5555
+tun:
+  name: aegis_srv
+  ip: 10.10.0.1
+  peer_ip: 10.10.0.2
+  mtu: 1400
+crypto:
+  key_dir: .\demo\keys\server
+morphic:
+  profile: web_browsing
+feedback:
+  enabled: true
+logging:
+  level: INFO
+  file: .\demo\server.log
 ```
 
-### 8.2 — Demo Script (`demo/run_demo.sh`)
+**`demo/client.conf`**
+```yaml
+mode: client
+connect:
+  host: 127.0.0.1
+  port: 5555
+tun:
+  name: aegis_cli
+  ip: 10.10.0.2
+  peer_ip: 10.10.0.1
+  mtu: 1400
+crypto:
+  key_dir: .\demo\keys\client
+morphic:
+  profile: web_browsing
+feedback:
+  enabled: true
+logging:
+  level: INFO
+  file: .\demo\client.log
+```
 
-```bash
-#!/bin/bash
-# 1. docker compose up -d
-# 2. Wait for handshake (poll aegis status)
-# 3. Generate HTTP traffic: curl http://10.10.0.1/index.html (10 times)
-# 4. Generate bulk transfer: dd + nc through tunnel (10 MB)
-# 5. Switch profile to video_streaming
-# 6. Print final detection score + history
-# 7. docker compose down
+### 8.2 — Demo Script (`demo/run_demo.ps1`)
+
+```powershell
+#Requires -RunAsAdministrator
+# Aegis-Tunnel X — Windows Native Demo
+
+# 1. Generate keys for server and client
+aegis keygen --output .\demo\keys\server
+aegis keygen --output .\demo\keys\client
+# Copy server public keys to client dir and vice versa
+Copy-Item .\demo\keys\server\kyber_pub.bin  .\demo\keys\client\server_kyber_pub.bin
+Copy-Item .\demo\keys\server\x25519_pub.bin .\demo\keys\client\server_x25519_pub.bin
+
+# 2. Start server in background
+$server = Start-Process python -ArgumentList "-m aegis server --config .\demo\server.conf" -PassThru -NoNewWindow
+Start-Sleep -Seconds 2
+
+# 3. Start client in background
+$client = Start-Process python -ArgumentList "-m aegis client --config .\demo\client.conf" -PassThru -NoNewWindow
+Start-Sleep -Seconds 3
+
+# 4. Wait for handshake
+Write-Host "Waiting for tunnel handshake..."
+Start-Sleep -Seconds 5
+
+# 5. Generate test traffic through the tunnel
+Write-Host "Sending test traffic..."
+for ($i = 0; $i -lt 10; $i++) {
+    Test-Connection -ComputerName 10.10.0.1 -Count 1 -Quiet | Out-Null
+}
+
+# 6. Generate bulk transfer (10 MB via UDP socket)
+$data = [byte[]]::new(10MB)
+[System.Security.Cryptography.RandomNumberGenerator]::Fill($data)
+$udpClient = New-Object System.Net.Sockets.UdpClient
+for ($i = 0; $i -lt 10; $i++) {
+    $chunk = $data[($i * 1MB)..(($i + 1) * 1MB - 1)]
+    $udpClient.Send($chunk, $chunk.Length, "10.10.0.1", 9999) | Out-Null
+}
+$udpClient.Close()
+
+# 7. Switch profile
+aegis profile set video_streaming
+Start-Sleep -Seconds 5
+
+# 8. Print detection score
+aegis status
+
+# 9. Cleanup
+Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+Stop-Process -Id $client.Id -Force -ErrorAction SilentlyContinue
+Write-Host "Demo complete."
 ```
 
 ### 8.3 — End-to-End Tests (`tests/test_e2e.py`)
@@ -592,9 +669,16 @@ Test E2E-5: Restart client (simulates reconnect); new handshake succeeds; tunnel
 Test E2E-6: Inject a forged/replayed packet into the UDP stream; server silently drops it; no crash
 ```
 
+**Implementation notes for Windows E2E tests:**
+- Tests spawn server and client as `subprocess.Popen` processes on the same machine
+- Each uses a unique WinTUN adapter name (`aegis_e2e_srv`, `aegis_e2e_cli`) to avoid collisions
+- Tests must run as Administrator; skip gracefully with `pytest.mark.skipif` otherwise
+- Cleanup in `finally` blocks must call `process.terminate()` to release WinTUN adapters
+- Use `asyncio.wait_for(coro, timeout=...)` for timeout-bounded handshake checks
+
 ### Phase 8 Exit Criteria
-- `pytest tests/test_e2e.py -v` — all 6 tests pass
-- `docker compose up` → `demo/run_demo.sh` completes without errors
+- `pytest tests/test_e2e.py -v` — all 6 tests pass (Administrator PowerShell)
+- `.\demo\run_demo.ps1` completes without errors
 - `aegis status` shows detection score < 0.25 throughout the demo run
 
 ---
@@ -603,16 +687,16 @@ Test E2E-6: Inject a forged/replayed packet into the UDP stream; server silently
 
 | Phase | Module | Tests to Pass Before Next Phase |
 |-------|--------|--------------------------------|
-| 1 | `tun.py` | `test_tun.py` — 4 tests |
+| 1 ✅ | `tun.py` + `_tun_windows.py` | `test_tun.py` — 4 tests |
 | 2 | `crypto.py` | `test_crypto.py` — 6 tests |
 | 3 | `transport.py` | `test_transport.py` — 6 tests |
 | 4 | `tunnel.py` | `test_tunnel.py` — 5 tests |
 | 5 | `morphic.py` + `profiles/` | `test_morphic.py` — 6 tests |
 | 6 | `feedback.py` | `test_feedback.py` — 6 tests |
-| 7 | `cli.py` + `config.py` | `test_cli.py` — 4 tests |
+| 7 | `cli.py` + `config.py` | `test_cli.py` — 5 tests |
 | 8 | `demo/` + `setup.py` | `test_e2e.py` — 6 tests |
 
-**Total: 43 tests across 8 phases. All must pass before demo.**
+**Total: 44 tests across 8 phases. All must pass before demo.**
 
 ---
 
@@ -620,8 +704,13 @@ Test E2E-6: Inject a forged/replayed packet into the UDP stream; server silently
 
 1. **Never restructure the repo** after Phase 1 scaffold is laid.
 2. **Never import between phases out of order** — e.g., `tunnel.py` may import `morphic.py` with a `None` guard, but `morphic.py` must not import `tunnel.py`.
-3. **Root is required** for TUN tests. The agent must either use `sudo pytest` or skip TUN-dependent tests gracefully with `pytest.mark.skipif(os.getuid() != 0, reason="requires root")`.
-4. **liboqs must be installed system-wide** before Phase 2. If `import oqs` fails, the agent must install `liboqs-dev` via apt before proceeding.
+3. **Administrator is required** for TUN tests. The agent must either run PowerShell as Administrator or skip TUN-dependent tests gracefully with `pytest.mark.skipif(not _is_windows_admin(), reason="requires Administrator")`.
+4. **`liboqs-python` must be installed** before Phase 2. If `import oqs` fails, the agent must `pip install liboqs-python` before proceeding. Pre-built Windows wheels are available.
 5. **All crypto operations use constant-time primitives** — no `==` comparison on secrets; use `hmac.compare_digest`.
 6. **No plaintext secrets on disk** — key files are binary, not PEM/hex strings.
 7. **Detection score history must be serializable to JSON** for the demo dashboard.
+8. **All paths must use `pathlib.Path`** for cross-platform compatibility; never hardcode `/` separators.
+9. **WinTUN adapters must be cleaned up** in all error paths — use context managers or `try/finally` blocks to call `WintunCloseAdapter`.
+10. **asyncio on Windows**: TUN blocking reads must be offloaded to a thread executor via `loop.run_in_executor()` to avoid blocking the event loop.
+11. **No WSL, VirtualBox, or Docker** — everything runs natively on Windows.
+12. **Firewall**: The agent should document that Windows Firewall may need an inbound UDP rule for port 5555 (`netsh advfirewall firewall add rule name="Aegis" dir=in action=allow protocol=UDP localport=5555`).
