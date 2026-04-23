@@ -1,0 +1,6 @@
+cryptography>=42.0
+liboqs-python>=0.10.0
+pyyaml>=6.0
+rich>=13.0
+pytest
+pytest-asyncio>=0.23
