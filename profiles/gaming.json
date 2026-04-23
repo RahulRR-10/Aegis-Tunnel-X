@@ -1,1 +1,19 @@
-{}
+{
+  "name": "gaming",
+  "packet_size_distribution": {
+    "type": "bimodal",
+    "peaks": [40, 200],
+    "weights": [0.6, 0.4],
+    "std_dev": [10, 40]
+  },
+  "inter_packet_delay_ms": {
+    "type": "pareto",
+    "alpha": 3.0,
+    "min_ms": 5.0,
+    "max_ms": 30
+  },
+  "burst_profile": {
+    "burst_size_range": [1, 5],
+    "burst_pause_ms_range": [10, 20]
+  }
+}

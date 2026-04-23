@@ -73,9 +73,9 @@ aegis-tunnel-x/
 |-------|--------|--------|
 | 1 | TUN Interface | ✅ Complete |
 | 2 | Encryption Engine | ✅ Complete |
-| 3 | UDP Transport | ⬜ Pending |
-| 4 | Tunnel Integration | ⬜ Pending |
-| 5 | Morphic Engine | ⬜ Pending |
+| 3 | UDP Transport | ✅ Complete |
+| 4 | Tunnel Integration | ✅ Complete |
+| 5 | Morphic Engine | ✅ Complete |
 | 6 | Feedback Loop | ⬜ Pending |
 | 7 | CLI & Config | ⬜ Pending |
 | 8 | Demo & E2E | ⬜ Pending |
