@@ -43,6 +43,14 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 # available on all Windows systems.  We try to import it and set a flag.
 # Note: the oqs package raises SystemExit(1) if it can't auto-install
 # the native library, so we must catch BaseException.
+
+import sys
+if sys.platform == "win32":
+    try:
+        os.add_dll_directory(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+    except Exception:
+        pass
+
 try:
     import oqs  # type: ignore[import-untyped]
 
