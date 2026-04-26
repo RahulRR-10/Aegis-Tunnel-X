@@ -29,6 +29,8 @@ from __future__ import annotations
 import hmac
 import os
 import threading
+import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from cryptography.hazmat.primitives import hashes, serialization
@@ -44,10 +46,14 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 # Note: the oqs package raises SystemExit(1) if it can't auto-install
 # the native library, so we must catch BaseException.
 
-import sys
-if sys.platform == "win32":
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_WINDOWS_OQS_DLL_HANDLE: object | None = None
+
+if sys.platform == "win32" and (_PROJECT_ROOT / "bin" / "oqs.dll").exists():
+    # liboqs-python looks under OQS_INSTALL_PATH/bin on Windows.
+    os.environ.setdefault("OQS_INSTALL_PATH", str(_PROJECT_ROOT))
     try:
-        os.add_dll_directory(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+        _WINDOWS_OQS_DLL_HANDLE = os.add_dll_directory(str(_PROJECT_ROOT))
     except Exception:
         pass
 

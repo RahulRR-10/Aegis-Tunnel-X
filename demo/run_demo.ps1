@@ -1,4 +1,8 @@
 #Requires -RunAsAdministrator
+param(
+    [switch]$CleanupOnExit
+)
+
 <#
 .SYNOPSIS
     Aegis-Tunnel X - Windows Native Demo
@@ -12,6 +16,9 @@
 .NOTES
     Must be run from an Administrator PowerShell session.
     Requires: Python 3.12+, wintun.dll in project root
+
+    Default behavior keeps server/client running after the demo.
+    Pass -CleanupOnExit to restore auto-cleanup behavior.
 #>
 
 $ErrorActionPreference = "Continue"
@@ -163,22 +170,34 @@ try {
     Write-Host "======================================================" -ForegroundColor Green
 
 } finally {
-    # Cleanup
     Write-Host ""
-    Write-Host "Cleaning up..." -ForegroundColor Yellow
-    if ($server -and -not $server.HasExited) {
-        Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
-        Write-Host "  [OK] Server stopped" -ForegroundColor Gray
+    if ($CleanupOnExit) {
+        # Cleanup
+        Write-Host "Cleaning up..." -ForegroundColor Yellow
+        if ($server -and -not $server.HasExited) {
+            Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+            Write-Host "  [OK] Server stopped" -ForegroundColor Gray
+        }
+        if ($client -and -not $client.HasExited) {
+            Stop-Process -Id $client.Id -Force -ErrorAction SilentlyContinue
+            Write-Host "  [OK] Client stopped" -ForegroundColor Gray
+        }
+        # Clean up routes (silently ignore errors)
+        & route DELETE 10.10.0.1 2>&1 | Out-Null
+        & route DELETE 10.10.0.2 2>&1 | Out-Null
+        # Remove status file
+        $statusFile = Join-Path $env:USERPROFILE ".aegis\status.json"
+        if (Test-Path $statusFile) { Remove-Item $statusFile -Force -ErrorAction SilentlyContinue }
+    } else {
+        Write-Host "Keeping server/client running (no cleanup)." -ForegroundColor Green
+        if ($server -and -not $server.HasExited) {
+            Write-Host "  Server PID: $($server.Id)" -ForegroundColor Gray
+        }
+        if ($client -and -not $client.HasExited) {
+            Write-Host "  Client PID: $($client.Id)" -ForegroundColor Gray
+        }
+        Write-Host "  Logs: .\\demo\\logs\\server_stdout.log and .\\demo\\logs\\client_stdout.log" -ForegroundColor Gray
+        Write-Host "  To cleanup later, rerun script with -CleanupOnExit or stop PIDs manually." -ForegroundColor Gray
     }
-    if ($client -and -not $client.HasExited) {
-        Stop-Process -Id $client.Id -Force -ErrorAction SilentlyContinue
-        Write-Host "  [OK] Client stopped" -ForegroundColor Gray
-    }
-    # Clean up routes (silently ignore errors)
-    & route DELETE 10.10.0.1 2>&1 | Out-Null
-    & route DELETE 10.10.0.2 2>&1 | Out-Null
-    # Remove status file
-    $statusFile = Join-Path $env:USERPROFILE ".aegis\status.json"
-    if (Test-Path $statusFile) { Remove-Item $statusFile -Force -ErrorAction SilentlyContinue }
     Pop-Location
 }

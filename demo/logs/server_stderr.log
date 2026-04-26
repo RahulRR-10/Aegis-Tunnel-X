@@ -1,6 +1,23 @@
-2026-04-24 01:17:43,906 [aegis.cli] INFO: Added route: 10.10.0.2 -> 10.10.0.1
-2026-04-24 01:17:43,918 [aegis.transport] INFO: Server listening on 127.0.0.1:5555
-2026-04-24 01:17:43,919 [aegis.cli] INFO: Server started on 127.0.0.1:5555
-2026-04-24 01:17:43,920 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
-2026-04-24 01:17:43,920 [aegis.tunnel] INFO: Tunnel started
-2026-04-24 01:17:47,505 [aegis.transport] INFO: Session established with ('127.0.0.1', 62367) (session 11660351)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "D:\NPS Lab\Aegis-Tunnel-X\aegis\cli.py", line 526, in <module>
+    main()
+  File "D:\NPS Lab\Aegis-Tunnel-X\aegis\cli.py", line 520, in main
+    handler(args)
+  File "D:\NPS Lab\Aegis-Tunnel-X\aegis\cli.py", line 145, in cmd_server
+    asyncio.run(_run_tunnel(cfg))
+  File "C:\Users\sbrbs\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\sbrbs\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sbrbs\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "D:\NPS Lab\Aegis-Tunnel-X\aegis\cli.py", line 187, in _run_tunnel
+    tun.open()
+  File "D:\NPS Lab\Aegis-Tunnel-X\aegis\_tun_windows.py", line 136, in open
+    raise self._win_error("WintunCreateAdapter failed")
+OSError: [Errno -2147024713] WintunCreateAdapter failed: Cannot create a file when that file already exists.

@@ -23,3 +23,15 @@
 2026-04-24 01:17:47,505 [aegis.cli] INFO: Connected to 127.0.0.1:5555
 2026-04-24 01:17:47,506 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
 2026-04-24 01:17:47,506 [aegis.tunnel] INFO: Tunnel started
+2026-04-26 17:21:21,440 [aegis.cli] INFO: Added route: 10.10.0.1 -> 10.10.0.2
+2026-04-26 17:21:21,457 [aegis.transport] INFO: Connected to 127.0.0.1:5555
+2026-04-26 17:21:21,457 [aegis.cli] INFO: Connected to 127.0.0.1:5555
+2026-04-26 17:21:21,459 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-26 17:21:21,460 [aegis.tunnel] INFO: Tunnel started
+2026-04-26 17:21:32,330 [aegis.transport] ERROR: Client UDP error: [WinError 1234] No service is operating at the destination network endpoint on the remote system
+2026-04-26 18:03:35,246 [aegis.cli] INFO: Added route: 10.10.0.1 -> 10.10.0.2
+2026-04-26 18:03:35,249 [aegis.transport] INFO: Connected to 127.0.0.1:5555
+2026-04-26 18:03:35,249 [aegis.cli] INFO: Connected to 127.0.0.1:5555
+2026-04-26 18:03:35,265 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-26 18:03:35,265 [aegis.tunnel] INFO: Tunnel started
+2026-04-26 18:10:57,591 [aegis.transport] ERROR: Client UDP error: [WinError 1234] No service is operating at the destination network endpoint on the remote system
