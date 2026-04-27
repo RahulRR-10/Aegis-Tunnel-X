@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aegis-Tunnel X</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #000;
+      --bg-panel: #070707;
+      --border: #00ff8840;
+      --text: #00ff88;
+      --muted: #7bb99a;
+      --warn: #ff4d4f;
+      --pad: #ff9f1a;
+    }
+
+    html, body {
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: radial-gradient(circle at 20% 20%, #062017 0%, #000 60%);
+      color: var(--text);
+      font-family: "JetBrains Mono", monospace;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #statusbar {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 16px;
+      align-items: center;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(6, 14, 10, 0.9);
+      font-size: 12px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text);
+      display: inline-block;
+      margin-right: 8px;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%,
+      100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    #session-key {
+      color: var(--muted);
+      text-align: right;
+    }
+
+    #session-key-value {
+      color: var(--text);
+    }
+
+    #grid {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 8px;
+      padding: 8px;
+      overflow: hidden;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(2, 12, 8, 0.95), rgba(2, 8, 5, 0.95));
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .panel-title {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      border-bottom: 1px solid rgba(0, 255, 136, 0.15);
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+    }
+
+    canvas {
+      flex: 1;
+      min-height: 180px;
+    }
+
+    #log-output {
+      flex: 1;
+      overflow-y: auto;
+      font-size: 11px;
+      line-height: 1.5;
+      color: #9dfccf;
+      padding-right: 4px;
+    }
+
+    #log-output div {
+      padding: 1px 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #log-output .warn {
+      color: var(--warn);
+    }
+
+    #stats-grid {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      border-bottom: 1px solid rgba(0, 255, 136, 0.1);
+      padding-bottom: 6px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+    }
+
+    .stat-value {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    #toggle-btn {
+      margin-top: auto;
+      border: 1px solid var(--warn);
+      color: var(--warn);
+      background: transparent;
+      border-radius: 6px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      letter-spacing: 1px;
+      padding: 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    #toggle-btn:hover {
+      filter: brightness(1.2);
+    }
+
+    #toggle-btn.on {
+      border-color: var(--text);
+      color: var(--text);
+      background: rgba(0, 255, 136, 0.08);
+    }
+
+    @media (max-width: 960px) {
+      #statusbar {
+        grid-template-columns: 1fr;
+        text-align: left;
+      }
+
+      #session-key {
+        text-align: left;
+      }
+
+      #grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(4, minmax(220px, auto));
+        overflow-y: auto;
+      }
+
+      body {
+        overflow: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="statusbar">
+    <div><span class="dot"></span><strong>TUNNEL ACTIVE</strong> - UDP / AES-256-GCM</div>
+    <div>KEM: CRYSTALS-Kyber512</div>
+    <div id="session-key">SESSION KEY: <span id="session-key-value">--------...</span></div>
+  </div>
+
+  <div id="grid">
+    <section class="panel">
+      <div class="panel-title">Entropy Monitor</div>
+      <canvas id="entropyChart"></canvas>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">Morphing Visualizer</div>
+      <canvas id="morphChart"></canvas>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">Live Telemetry Log</div>
+      <div id="log-output"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">System Stats</div>
+      <div id="stats-grid">
+        <div class="stat-row"><span class="stat-label">PACKETS SENT</span><span class="stat-value" id="s-packets">0</span></div>
+        <div class="stat-row"><span class="stat-label">AVG ENTROPY (RAW)</span><span class="stat-value" id="s-raw">-</span></div>
+        <div class="stat-row"><span class="stat-label">AVG ENTROPY (MORPHED)</span><span class="stat-value" id="s-morphed">-</span></div>
+        <div class="stat-row"><span class="stat-label">TOTAL PADDING</span><span class="stat-value" id="s-padding">0 B</span></div>
+        <div class="stat-row"><span class="stat-label">AVG JITTER</span><span class="stat-value" id="s-jitter">-</span></div>
+        <div class="stat-row"><span class="stat-label">ENGINE STATUS</span><span class="stat-value" id="s-engine">ON</span></div>
+      </div>
+      <button id="toggle-btn" class="on" onclick="toggleEngine()">MORPHIC ENGINE: ON</button>
+    </section>
+  </div>
+
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>
