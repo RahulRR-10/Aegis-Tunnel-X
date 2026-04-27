@@ -79,10 +79,22 @@ def env_int(name: str, default: int) -> int:
 def fetch_engine_state(default: bool) -> bool:
     request = urllib.request.Request(f"{DASHBOARD_BASE_URL}/engine", method="GET")
     try:
-        with urllib.request.urlopen(request, timeout=0.15) as response:
+        with urllib.request.urlopen(request, timeout=1.5) as response:
             payload = json.loads(response.read().decode("utf-8"))
             return bool(payload.get("engine_on", default))
     except (OSError, urllib.error.URLError, TimeoutError, json.JSONDecodeError):
+        return default
+
+
+def fetch_tunnel_state(default: bool) -> bool:
+    """Return True if the dashboard tunnel is currently running."""
+    request = urllib.request.Request(f"{DASHBOARD_BASE_URL}/tunnel", method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=1.5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+            return bool(payload.get("tunnel_running", default))
+    except (OSError, urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
+        print(f"[DEBUG] fetch_tunnel_state error: {e}")
         return default
 
 
@@ -96,7 +108,7 @@ def push_stats(stats: dict) -> None:
     )
 
     try:
-        with urllib.request.urlopen(request, timeout=0.15):
+        with urllib.request.urlopen(request, timeout=1.5):
             pass
     except (OSError, urllib.error.URLError, TimeoutError):
         # Dashboard is optional and should never break the tunnel path.
@@ -106,17 +118,24 @@ def push_stats(stats: dict) -> None:
 def main() -> None:
     session_key = run_handshake_client()
     default_engine_on = env_flag("MORPHIC_ENGINE_ON", True)
-    packet_count = env_int("PACKET_COUNT", 60)
     packet_interval_ms = env_int("PACKET_INTERVAL_MS", 400)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     print(
-        "[CLIENT] Sending telemetry packets... "
-        f"count={packet_count}, interval={packet_interval_ms}ms, "
-        f"dashboard={DASHBOARD_BASE_URL}"
+        "[CLIENT] Continuous packet loop started. "
+        f"interval={packet_interval_ms}ms, dashboard={DASHBOARD_BASE_URL}"
     )
+    print("[CLIENT] Waiting for START TUNNEL signal from dashboard...")
 
-    for i in range(packet_count):
+    i = 0
+    while True:
+        # ── Tunnel gate: poll dashboard; block here while stopped ────────
+        tunnel_running = fetch_tunnel_state(default=False)
+        if not tunnel_running:
+            time.sleep(0.5)   # lightweight poll while paused
+            continue
+
+        # ── Tunnel is running — send one packet ─────────────────────────
         engine_on = fetch_engine_state(default_engine_on)
         payload = f"TEST PACKET {i} - hello from client".encode()
         encrypted = encrypt(payload, session_key)
@@ -145,6 +164,7 @@ def main() -> None:
                 "ENGINE OFF"
             )
 
+        i += 1
         time.sleep(packet_interval_ms / 1000)
 
 
