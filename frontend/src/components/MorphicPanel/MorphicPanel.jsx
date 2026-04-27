@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   CheckCircle2,
@@ -7,7 +7,7 @@ import {
   RefreshCw,
   SlidersHorizontal,
   Zap,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -17,7 +17,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from 'recharts';
+} from "recharts";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -64,13 +64,22 @@ function mergeSizeData(profile, history) {
     for (let i = 1; i < slice.length; i++) {
       const current = slice[i];
       const previous = slice[i - 1];
-      const byteDelta = Math.max(0, Number(current.bytes_tx || 0) - Number(previous.bytes_tx || 0));
-      const packetDelta = Math.max(0, Number(current.pkts_tx || 0) - Number(previous.pkts_tx || 0));
+      const byteDelta = Math.max(
+        0,
+        Number(current.bytes_tx || 0) - Number(previous.bytes_tx || 0),
+      );
+      const packetDelta = Math.max(
+        0,
+        Number(current.pkts_tx || 0) - Number(previous.pkts_tx || 0),
+      );
       if (byteDelta === 0 || packetDelta === 0) {
         continue;
       }
 
-      const avgPacketSize = Math.max(1, Math.min(1500, Math.round(byteDelta / packetDelta)));
+      const avgPacketSize = Math.max(
+        1,
+        Math.min(1500, Math.round(byteDelta / packetDelta)),
+      );
       const bucket = Math.floor(avgPacketSize / bucketWidth) * bucketWidth;
       observed[bucket] = (observed[bucket] || 0) + packetDelta;
     }
@@ -96,15 +105,15 @@ function buildIPDHistogram(history) {
   if (history.length < 3) return [];
   const slice = history.slice(-300);
   const bins = [
-    { lo: 0, hi: 1, label: '<1' },
-    { lo: 1, hi: 5, label: '1-5' },
-    { lo: 5, hi: 10, label: '5-10' },
-    { lo: 10, hi: 25, label: '10-25' },
-    { lo: 25, hi: 50, label: '25-50' },
-    { lo: 50, hi: 100, label: '50-100' },
-    { lo: 100, hi: 250, label: '100-250' },
-    { lo: 250, hi: 500, label: '250-500' },
-    { lo: 500, hi: Infinity, label: '>500' },
+    { lo: 0, hi: 1, label: "<1" },
+    { lo: 1, hi: 5, label: "1-5" },
+    { lo: 5, hi: 10, label: "5-10" },
+    { lo: 10, hi: 25, label: "10-25" },
+    { lo: 25, hi: 50, label: "25-50" },
+    { lo: 50, hi: 100, label: "50-100" },
+    { lo: 100, hi: 250, label: "100-250" },
+    { lo: 250, hi: 500, label: "250-500" },
+    { lo: 500, hi: Infinity, label: ">500" },
   ];
 
   const counts = bins.map(() => 0);
@@ -140,11 +149,7 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 function EmptyChartState({ text }) {
-  return (
-    <div className="chart-empty-state">
-      {text || 'waiting for data'}
-    </div>
-  );
+  return <div className="chart-empty-state">{text || "waiting for data"}</div>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -186,7 +191,7 @@ function ProfileSwitcher({ activeProfile, profiles, onSwitch, switching }) {
           return (
             <button
               key={name}
-              className={`profile-radio${isSelected ? ' is-selected' : ''}${isActive ? ' is-active' : ''}`}
+              className={`profile-radio${isSelected ? " is-selected" : ""}${isActive ? " is-active" : ""}`}
               disabled={switching}
               onClick={() => setSelected(name)}
               type="button"
@@ -205,7 +210,7 @@ function ProfileSwitcher({ activeProfile, profiles, onSwitch, switching }) {
       </div>
 
       <button
-        className={`morphic-switch-btn${switching ? ' is-switching' : ''}`}
+        className={`morphic-switch-btn${switching ? " is-switching" : ""}`}
         disabled={!isChanged || switching}
         onClick={() => onSwitch(selected)}
         type="button"
@@ -236,16 +241,16 @@ function ProfileParamsCard({ profile, profileName }) {
   const burst = profile?.burst_profile || {};
 
   const rows = [
-    ['Size dist', dist.type || 'N/A'],
-    ['Peaks', (dist.peaks || []).join(' / ') + ' B'],
-    ['Weights', (dist.weights || []).join(' / ')],
-    ['Std dev', (dist.std_dev || []).join(' / ')],
-    ['IPD type', ipd.type || 'N/A'],
-    ['\u03B1 (alpha)', ipd.alpha ?? 'N/A'],
-    ['Min IPD', `${ipd.min_ms ?? 'N/A'} ms`],
-    ['Max IPD', `${ipd.max_ms ?? 'N/A'} ms`],
-    ['Burst size', (burst.burst_size_range || []).join('\u2013') + ' pkts'],
-    ['Pause', (burst.burst_pause_ms_range || []).join('\u2013') + ' ms'],
+    ["Size dist", dist.type || "N/A"],
+    ["Peaks", (dist.peaks || []).join(" / ") + " B"],
+    ["Weights", (dist.weights || []).join(" / ")],
+    ["Std dev", (dist.std_dev || []).join(" / ")],
+    ["IPD type", ipd.type || "N/A"],
+    ["\u03B1 (alpha)", ipd.alpha ?? "N/A"],
+    ["Min IPD", `${ipd.min_ms ?? "N/A"} ms`],
+    ["Max IPD", `${ipd.max_ms ?? "N/A"} ms`],
+    ["Burst size", (burst.burst_size_range || []).join("\u2013") + " pkts"],
+    ["Pause", (burst.burst_pause_ms_range || []).join("\u2013") + " ms"],
   ];
 
   return (
@@ -357,19 +362,15 @@ function IPDHistogramChart({ data, medianMs }) {
                 stroke="rgba(110, 127, 143, 0.16)"
                 vertical={false}
               />
-              <XAxis
-                dataKey="label"
-                stroke="#6e7f8f"
-                tick={{ fontSize: 11 }}
-              />
+              <XAxis dataKey="label" stroke="#6e7f8f" tick={{ fontSize: 11 }} />
               <YAxis stroke="#6e7f8f" tick={{ fontSize: 11 }} />
               <Tooltip content={<ChartTooltip />} />
               {medianMs > 0 && (
                 <ReferenceLine
                   label={{
-                    fill: '#00cfff',
+                    fill: "#00cfff",
                     fontSize: 11,
-                    position: 'top',
+                    position: "top",
                     value: `median ${medianMs.toFixed(1)}ms`,
                   }}
                   stroke="#00cfff"
@@ -414,22 +415,26 @@ function BurstIndicator({ burstRange, history }) {
   return (
     <div className="morphic-card burst-card">
       <SectionHeader title="Burst Activity">
-        <span className="morphic-chart-badge">{lo}–{hi} pkts</span>
+        <span className="morphic-chart-badge">
+          {lo}–{hi} pkts
+        </span>
       </SectionHeader>
       <div className="burst-grid">
         {Array.from({ length: maxSquares }).map((_, i) => (
           <span
             key={i}
-            className={`burst-square${i < activeCount ? ' is-lit' : ''}`}
+            className={`burst-square${i < activeCount ? " is-lit" : ""}`}
           />
         ))}
       </div>
       <div className="burst-legend">
         <span>
           <Zap aria-hidden="true" size={13} />
-          {activeCount > 0 ? 'bursting' : 'idle'}
+          {activeCount > 0 ? "bursting" : "idle"}
         </span>
-        <span>{activeCount}/{maxSquares} rapid frames</span>
+        <span>
+          {activeCount}/{maxSquares} rapid frames
+        </span>
       </div>
     </div>
   );
@@ -443,7 +448,7 @@ export function MorphicPanel({ panel, socket }) {
   const Icon = panel.icon;
   const [morphic, setMorphic] = useState(null);
   const [switching, setSwitching] = useState(false);
-  const [switchError, setSwitchError] = useState('');
+  const [switchError, setSwitchError] = useState("");
   const [apiState, setApiState] = useState({ loading: true, error: null });
 
   // Fetch /api/morphic on mount and periodically
@@ -452,7 +457,7 @@ export function MorphicPanel({ panel, socket }) {
 
     async function load() {
       try {
-        const res = await fetch('/api/morphic');
+        const res = await fetch("/api/morphic");
         if (!res.ok) throw new Error(`status ${res.status}`);
         const payload = await res.json();
         if (!cancelled) {
@@ -477,29 +482,33 @@ export function MorphicPanel({ panel, socket }) {
   // Profile switch handler
   const handleSwitch = useCallback(async (name) => {
     setSwitching(true);
-    setSwitchError('');
+    setSwitchError("");
     try {
       const res = await fetch(`/api/profile/${encodeURIComponent(name)}`, {
-        method: 'POST',
+        method: "POST",
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.detail || `status ${res.status}`);
       }
       // Refresh morphic data
-      const refreshRes = await fetch('/api/morphic');
+      const refreshRes = await fetch("/api/morphic");
       if (refreshRes.ok) {
         setMorphic(await refreshRes.json());
       }
     } catch (err) {
-      setSwitchError(err.message || 'Profile switch failed');
+      setSwitchError(err.message || "Profile switch failed");
     } finally {
       setSwitching(false);
     }
   }, []);
 
-  const activeProfile = morphic?.profile || socket.data?.profile || 'N/A';
-  const profiles = morphic?.available_profiles || ['web_browsing', 'video_streaming', 'gaming'];
+  const activeProfile = morphic?.profile || socket.data?.profile || "N/A";
+  const profiles = morphic?.available_profiles || [
+    "web_browsing",
+    "video_streaming",
+    "gaming",
+  ];
   const params = morphic?.params || {};
   const burst = params?.burst_profile || {};
 
@@ -523,13 +532,16 @@ export function MorphicPanel({ panel, socket }) {
   }, [params]);
 
   const apiLabel = apiState.loading
-    ? 'loading'
+    ? "loading"
     : apiState.error
-      ? 'offline'
-      : 'live';
+      ? "offline"
+      : "live";
 
   return (
-    <section className="active-panel morphic-panel" aria-labelledby="panel-title">
+    <section
+      className="active-panel morphic-panel"
+      aria-labelledby="panel-title"
+    >
       <div className="panel-heading">
         <div>
           <span className="panel-kicker">{panel.phase}</span>
@@ -551,11 +563,10 @@ export function MorphicPanel({ panel, socket }) {
           profiles={profiles}
           switching={switching}
         />
-        {switchError ? <div className="panel-action-error">{switchError}</div> : null}
-        <ProfileParamsCard
-          profile={params}
-          profileName={activeProfile}
-        />
+        {switchError ? (
+          <div className="panel-action-error">{switchError}</div>
+        ) : null}
+        <ProfileParamsCard profile={params} profileName={activeProfile} />
         <SizeDistributionChart data={sizeData} />
         <IPDHistogramChart data={ipdData} medianMs={ipdMedian} />
         <BurstIndicator

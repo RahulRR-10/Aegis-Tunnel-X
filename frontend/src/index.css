@@ -11,8 +11,10 @@
   --accent-amber: #ffaa00;
   --text-primary: #c9d1d9;
   --text-dim: #6e7f8f;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Mono', Consolas, monospace;
-  --font-display: 'Space Mono', 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  --font-mono:
+    "JetBrains Mono", "Fira Code", "Cascadia Mono", Consolas, monospace;
+  --font-display:
+    "Space Mono", "JetBrains Mono", "Fira Code", Consolas, monospace;
 }
 
 * {
@@ -53,7 +55,10 @@ button:focus-visible {
     linear-gradient(rgba(0, 255, 136, 0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 207, 255, 0.025) 1px, transparent 1px),
     var(--bg-void);
-  background-size: 28px 28px, 28px 28px, auto;
+  background-size:
+    28px 28px,
+    28px 28px,
+    auto;
 }
 
 .top-bar {
@@ -62,7 +67,10 @@ button:focus-visible {
   border-bottom: 1px solid var(--border);
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(230px, 0.9fr) minmax(460px, 1.3fr) minmax(280px, 0.8fr);
+  grid-template-columns: minmax(230px, 0.9fr) minmax(460px, 1.3fr) minmax(
+      280px,
+      0.8fr
+    );
   min-width: 0;
   padding: 0 18px;
 }
@@ -363,7 +371,9 @@ button:focus-visible {
   background:
     linear-gradient(rgba(0, 255, 136, 0.055) 1px, transparent 1px),
     rgba(8, 12, 16, 0.58);
-  background-size: 100% 24px, auto;
+  background-size:
+    100% 24px,
+    auto;
   border: 1px solid rgba(0, 207, 255, 0.26);
   border-radius: 8px;
   min-height: 0;
@@ -984,7 +994,9 @@ button:focus-visible {
   gap: 8px;
   min-width: 0;
   padding: 14px;
-  transition: border-color 180ms ease, box-shadow 180ms ease;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .seq-counter.is-flashing {
@@ -1164,7 +1176,9 @@ button:focus-visible {
   display: block;
   height: 100%;
   min-width: 2px;
-  transition: width 220ms ease, background 220ms ease;
+  transition:
+    width 220ms ease,
+    background 220ms ease;
 }
 
 .keepalive-meter span.is-urgent {
@@ -1221,7 +1235,10 @@ button:focus-visible {
   display: grid;
   gap: 16px;
   grid-template-columns: minmax(280px, 0.48fr) minmax(0, 1fr);
-  grid-template-rows: minmax(228px, 0.76fr) minmax(178px, 0.62fr) minmax(178px, 0.62fr) 44px;
+  grid-template-rows: minmax(228px, 0.76fr) minmax(178px, 0.62fr) minmax(
+      178px,
+      0.62fr
+    ) 44px;
   min-height: 0;
 }
 
@@ -1629,7 +1646,9 @@ button:focus-visible {
   gap: 10px;
   min-height: 52px;
   padding: 10px 14px;
-  transition: border-color 180ms ease, background 180ms ease;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease;
 }
 
 .profile-radio:hover {
@@ -1653,7 +1672,9 @@ button:focus-visible {
   border-radius: 999px;
   flex: 0 0 auto;
   height: 16px;
-  transition: background 180ms ease, box-shadow 180ms ease;
+  transition:
+    background 180ms ease,
+    box-shadow 180ms ease;
   width: 16px;
 }
 
@@ -1703,7 +1724,10 @@ button:focus-visible {
   height: 42px;
   justify-content: center;
   text-transform: uppercase;
-  transition: background 180ms ease, border-color 180ms ease, opacity 180ms ease;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    opacity 180ms ease;
 }
 
 .morphic-switch-btn:hover:not(:disabled) {
@@ -1792,7 +1816,10 @@ button:focus-visible {
   border: 1px solid rgba(30, 45, 61, 0.92);
   border-radius: 4px;
   height: 28px;
-  transition: background 260ms ease, border-color 260ms ease, box-shadow 260ms ease;
+  transition:
+    background 260ms ease,
+    border-color 260ms ease,
+    box-shadow 260ms ease;
   width: 28px;
 }
 
@@ -1826,8 +1853,13 @@ button:focus-visible {
 }
 
 @keyframes burstPulse {
-  0%, 100% { opacity: 0.72; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 @keyframes spin {
@@ -2501,7 +2533,10 @@ button:focus-visible {
   gap: 8px;
   height: 40px;
   justify-content: center;
-  transition: background 180ms ease, border-color 180ms ease, opacity 180ms ease;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    opacity 180ms ease;
 }
 
 .keygen-button:hover:not(:disabled) {
@@ -2541,7 +2576,9 @@ button:focus-visible {
   background:
     linear-gradient(rgba(0, 255, 136, 0.04) 1px, transparent 1px),
     rgba(8, 12, 16, 0.58);
-  background-size: 100% 22px, auto;
+  background-size:
+    100% 22px,
+    auto;
   border: 1px solid rgba(0, 207, 255, 0.26);
   border-radius: 8px;
   min-height: 0;
@@ -3039,8 +3076,13 @@ button:focus-visible {
 }
 
 @keyframes gaugePulse {
-  0%, 100% { opacity: 0.78; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.78;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 @keyframes drawHandshake {
@@ -3055,7 +3097,10 @@ button:focus-visible {
 
 @media (max-width: 1180px) {
   .top-bar {
-    grid-template-columns: minmax(180px, 0.7fr) minmax(360px, 1.2fr) minmax(220px, 0.8fr);
+    grid-template-columns: minmax(180px, 0.7fr) minmax(360px, 1.2fr) minmax(
+        220px,
+        0.8fr
+      );
   }
 
   .panel-placeholder-body {

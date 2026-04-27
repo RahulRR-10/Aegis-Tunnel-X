@@ -1,17 +1,17 @@
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert } from "lucide-react";
 
-import { ConfigPanel } from '../ConfigPanel/ConfigPanel.jsx';
-import { CryptoPanel } from '../CryptoPanel/CryptoPanel.jsx';
-import { DemoPanel } from '../DemoPanel/DemoPanel.jsx';
-import { FeedbackPanel } from '../FeedbackPanel/FeedbackPanel.jsx';
-import { MorphicPanel } from '../MorphicPanel/MorphicPanel.jsx';
-import { OverviewPanel } from '../OverviewPanel/OverviewPanel.jsx';
-import { TunnelPanel } from '../TunnelPanel/TunnelPanel.jsx';
-import { TransportPanel } from '../TransportPanel/TransportPanel.jsx';
-import { PanelPlaceholder } from './PanelPlaceholder.jsx';
-import { Sidebar } from './Sidebar.jsx';
-import { StatusBar } from './StatusBar.jsx';
-import { TopBar } from './TopBar.jsx';
+import { ConfigPanel } from "../ConfigPanel/ConfigPanel.jsx";
+import { CryptoPanel } from "../CryptoPanel/CryptoPanel.jsx";
+import { DemoPanel } from "../DemoPanel/DemoPanel.jsx";
+import { FeedbackPanel } from "../FeedbackPanel/FeedbackPanel.jsx";
+import { MorphicPanel } from "../MorphicPanel/MorphicPanel.jsx";
+import { OverviewPanel } from "../OverviewPanel/OverviewPanel.jsx";
+import { TunnelPanel } from "../TunnelPanel/TunnelPanel.jsx";
+import { TransportPanel } from "../TransportPanel/TransportPanel.jsx";
+import { PanelPlaceholder } from "./PanelPlaceholder.jsx";
+import { Sidebar } from "./Sidebar.jsx";
+import { StatusBar } from "./StatusBar.jsx";
+import { TopBar } from "./TopBar.jsx";
 
 export function Shell({
   activePanel,
@@ -33,22 +33,34 @@ export function Shell({
         />
 
         <main className="shell-main">
-          {activePanel.id === 'crypto' ? (
+          {activePanel.id === "crypto" ? (
             <CryptoPanel panel={activePanel} socket={socket} status={status} />
-          ) : activePanel.id === 'transport' ? (
-            <TransportPanel panel={activePanel} socket={socket} status={status} />
-          ) : activePanel.id === 'tunnel' ? (
+          ) : activePanel.id === "transport" ? (
+            <TransportPanel
+              panel={activePanel}
+              socket={socket}
+              status={status}
+            />
+          ) : activePanel.id === "tunnel" ? (
             <TunnelPanel panel={activePanel} socket={socket} status={status} />
-          ) : activePanel.id === 'morphic' ? (
+          ) : activePanel.id === "morphic" ? (
             <MorphicPanel panel={activePanel} socket={socket} status={status} />
-          ) : activePanel.id === 'feedback' ? (
-            <FeedbackPanel panel={activePanel} socket={socket} status={status} />
-          ) : activePanel.id === 'demo' ? (
+          ) : activePanel.id === "feedback" ? (
+            <FeedbackPanel
+              panel={activePanel}
+              socket={socket}
+              status={status}
+            />
+          ) : activePanel.id === "demo" ? (
             <DemoPanel panel={activePanel} socket={socket} status={status} />
-          ) : activePanel.id === 'config' ? (
+          ) : activePanel.id === "config" ? (
             <ConfigPanel panel={activePanel} socket={socket} status={status} />
-          ) : activePanel.id === 'overview' ? (
-            <OverviewPanel panel={activePanel} socket={socket} status={status} />
+          ) : activePanel.id === "overview" ? (
+            <OverviewPanel
+              panel={activePanel}
+              socket={socket}
+              status={status}
+            />
           ) : (
             <PanelPlaceholder
               panel={activePanel}
@@ -63,7 +75,7 @@ export function Shell({
                 <ShieldAlert aria-hidden="true" size={28} />
                 <div>
                   <strong>TUNNEL NOT RUNNING</strong>
-                  <span>{socket.error || 'Waiting for metrics stream'}</span>
+                  <span>{socket.error || "Waiting for metrics stream"}</span>
                 </div>
               </div>
             </div>
