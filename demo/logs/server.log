@@ -40,3 +40,27 @@
 2026-04-26 18:03:32,057 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
 2026-04-26 18:03:32,057 [aegis.tunnel] INFO: Tunnel started
 2026-04-26 18:03:35,249 [aegis.transport] INFO: Session established with ('127.0.0.1', 50087) (session b590336b)
+2026-04-27 10:18:35,617 [aegis.cli] INFO: Added route: 10.10.0.2 -> 10.10.0.1
+2026-04-27 10:18:35,635 [aegis.transport] INFO: Server listening on 127.0.0.1:5555
+2026-04-27 10:18:35,636 [aegis.cli] INFO: Server started on 127.0.0.1:5555
+2026-04-27 10:18:35,652 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-27 10:18:35,652 [aegis.tunnel] INFO: Tunnel started
+2026-04-27 10:18:41,927 [aegis.transport] INFO: Session established with ('127.0.0.1', 55164) (session 221fff68)
+2026-04-27 10:30:52,398 [aegis.cli] INFO: Added route: 10.10.0.2 -> 10.10.0.1
+2026-04-27 10:30:52,420 [aegis.transport] INFO: Server listening on 127.0.0.1:5555
+2026-04-27 10:30:52,421 [aegis.cli] INFO: Server started on 127.0.0.1:5555
+2026-04-27 10:30:52,422 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-27 10:30:52,423 [aegis.tunnel] INFO: Tunnel started
+2026-04-27 10:30:59,438 [aegis.transport] INFO: Session established with ('127.0.0.1', 61220) (session 2e1f34d6)
+2026-04-27 10:31:44,292 [aegis.cli] INFO: Added route: 10.10.0.2 -> 10.10.0.1
+2026-04-27 10:31:44,308 [aegis.transport] INFO: Server listening on 127.0.0.1:5555
+2026-04-27 10:31:44,309 [aegis.cli] INFO: Server started on 127.0.0.1:5555
+2026-04-27 10:31:44,310 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-27 10:31:44,311 [aegis.tunnel] INFO: Tunnel started
+2026-04-27 10:31:51,480 [aegis.transport] INFO: Session established with ('127.0.0.1', 51541) (session fc004ad4)
+2026-04-27 10:32:51,409 [aegis.cli] INFO: Added route: 10.10.0.2 -> 10.10.0.1
+2026-04-27 10:32:51,422 [aegis.transport] INFO: Server listening on 127.0.0.1:5555
+2026-04-27 10:32:51,423 [aegis.cli] INFO: Server started on 127.0.0.1:5555
+2026-04-27 10:32:51,424 [aegis.morphic] INFO: Loaded morphic profile: web_browsing
+2026-04-27 10:32:51,424 [aegis.tunnel] INFO: Tunnel started
+2026-04-27 10:32:54,576 [aegis.transport] INFO: Session established with ('127.0.0.1', 50502) (session c51515da)

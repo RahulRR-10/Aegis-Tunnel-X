@@ -24,6 +24,11 @@ param(
 $ErrorActionPreference = "Continue"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 
+# --------------------------------------------------------
+# Python executable path
+# --------------------------------------------------------
+$PyPath = "C:\Users\graph\AppData\Local\Programs\Python\Python311\python.exe"
+
 Push-Location $ProjectRoot
 try {
     Write-Host ""
@@ -44,8 +49,8 @@ try {
     # 1. Generate keys
     # --------------------------------------------------------
     Write-Host "[1/8] Generating cryptographic keys..." -ForegroundColor Yellow
-    python -W ignore -m aegis.cli keygen --output .\demo\keys\server 2>&1 | Where-Object { $_ -notmatch "UserWarning|from oqs" }
-    python -W ignore -m aegis.cli keygen --output .\demo\keys\client 2>&1 | Where-Object { $_ -notmatch "UserWarning|from oqs" }
+    & $PyPath -W ignore -m aegis.cli keygen --output .\demo\keys\server 2>&1 | Where-Object { $_ -notmatch "UserWarning|from oqs" }
+    & $PyPath -W ignore -m aegis.cli keygen --output .\demo\keys\client 2>&1 | Where-Object { $_ -notmatch "UserWarning|from oqs" }
 
     # Copy server public keys to client directory
     if (Test-Path .\demo\keys\server\kyber_pub.bin) {
@@ -61,7 +66,7 @@ try {
     # 2. Start server
     # --------------------------------------------------------
     Write-Host "[2/8] Starting tunnel server..." -ForegroundColor Yellow
-    $server = Start-Process python `
+    $server = Start-Process $PyPath `
         -ArgumentList "-W ignore -m aegis.cli server --config .\demo\server.conf" `
         -PassThru -NoNewWindow `
         -RedirectStandardOutput .\demo\logs\server_stdout.log `
@@ -81,7 +86,7 @@ try {
     # 3. Start client
     # --------------------------------------------------------
     Write-Host "[3/8] Starting tunnel client..." -ForegroundColor Yellow
-    $client = Start-Process python `
+    $client = Start-Process $PyPath `
         -ArgumentList "-W ignore -m aegis.cli client --config .\demo\client.conf" `
         -PassThru -NoNewWindow `
         -RedirectStandardOutput .\demo\logs\client_stdout.log `
@@ -147,14 +152,14 @@ try {
     # 6. List profiles
     # --------------------------------------------------------
     Write-Host "[6/8] Available morphic profiles:" -ForegroundColor Yellow
-    python -W ignore -m aegis.cli profile list 2>&1 | Where-Object { $_ -notmatch "UserWarning|from oqs" }
+    & $PyPath -W ignore -m aegis.cli profile list 2>&1 | Where-Object { $_ -notmatch "UserWarning|from oqs" }
     Write-Host ""
 
     # --------------------------------------------------------
     # 7. Switch profile
     # --------------------------------------------------------
     Write-Host "[7/8] Switching to video_streaming profile..." -ForegroundColor Yellow
-    python -W ignore -m aegis.cli profile set video_streaming 2>&1 | Where-Object { $_ -notmatch "UserWarning|from oqs" }
+    & $PyPath -W ignore -m aegis.cli profile set video_streaming 2>&1 | Where-Object { $_ -notmatch "UserWarning|from oqs" }
     Write-Host ""
 
     # --------------------------------------------------------
@@ -162,7 +167,7 @@ try {
     # --------------------------------------------------------
     Write-Host "[8/8] Tunnel status:" -ForegroundColor Yellow
     Start-Sleep -Seconds 2  # Wait for status file to update with traffic stats
-    python -W ignore -m aegis.cli status 2>&1 | Where-Object { $_ -notmatch "UserWarning|from oqs" }
+    & $PyPath -W ignore -m aegis.cli status 2>&1 | Where-Object { $_ -notmatch "UserWarning|from oqs" }
     Write-Host ""
 
     Write-Host "======================================================" -ForegroundColor Green

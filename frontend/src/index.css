@@ -31,7 +31,8 @@ body {
   background: var(--bg-void);
   color: var(--text-primary);
   font-family: var(--font-mono);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 button {
@@ -262,7 +263,8 @@ button:focus-visible {
 
 .shell-main {
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 20px;
   position: relative;
 }
@@ -279,6 +281,7 @@ button:focus-visible {
   grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-height: 0;
+  overflow-y: auto;
   padding: 20px;
 }
 
@@ -2751,6 +2754,255 @@ button:focus-visible {
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+.panel-action-error {
+  align-items: center;
+  background: rgba(255, 68, 68, 0.08);
+  border: 1px solid rgba(255, 68, 68, 0.36);
+  border-radius: 8px;
+  color: var(--accent-red);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  min-height: 34px;
+  padding: 8px 12px;
+  text-transform: uppercase;
+}
+
+/* =================================================================
+   OVERVIEW PANEL — Operations Console
+   ================================================================= */
+
+.overview-panel {
+  overflow: hidden;
+}
+
+.overview-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(360px, 0.8fr) minmax(0, 1.2fr);
+  min-height: 0;
+}
+
+.overview-card,
+.overview-tile-grid,
+.overview-guide-card {
+  background: rgba(8, 12, 16, 0.44);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.overview-card,
+.overview-guide-card {
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+  padding: 16px;
+}
+
+.overview-card-head h2 {
+  color: #e6edf3;
+  font-family: var(--font-display);
+  font-size: 14px;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.overview-state {
+  align-items: center;
+  border: 1px solid rgba(0, 207, 255, 0.34);
+  border-radius: 999px;
+  color: var(--accent-cyan);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 10px;
+  text-transform: uppercase;
+}
+
+.overview-state.is-offline {
+  border-color: rgba(255, 68, 68, 0.5);
+  color: var(--accent-red);
+}
+
+.overview-state.is-online {
+  border-color: rgba(0, 255, 136, 0.45);
+  color: var(--accent-green);
+}
+
+.overview-actions {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.overview-btn {
+  align-items: center;
+  background: rgba(20, 27, 36, 0.64);
+  border: 1px solid rgba(30, 45, 61, 0.84);
+  border-radius: 8px;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  gap: 8px;
+  height: 36px;
+  justify-content: center;
+  text-transform: uppercase;
+}
+
+.overview-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.overview-btn.is-primary {
+  border-color: rgba(0, 255, 136, 0.42);
+  color: var(--accent-green);
+}
+
+.overview-btn.is-danger {
+  border-color: rgba(255, 68, 68, 0.42);
+  color: var(--accent-red);
+}
+
+.overview-btn.is-outline {
+  border-color: rgba(0, 207, 255, 0.42);
+  color: var(--accent-cyan);
+}
+
+.overview-profile-row {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 130px minmax(0, 1fr) 108px;
+}
+
+.overview-profile-row label {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.overview-profile-row select {
+  background: rgba(20, 27, 36, 0.62);
+  border: 1px solid rgba(30, 45, 61, 0.84);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 13px;
+  height: 36px;
+  padding: 0 10px;
+}
+
+.overview-live-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.overview-live-status span {
+  background: rgba(20, 27, 36, 0.62);
+  border: 1px solid rgba(30, 45, 61, 0.84);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  text-transform: uppercase;
+}
+
+.overview-live-status strong {
+  color: var(--text-primary);
+}
+
+.overview-action-message {
+  border: 1px solid rgba(0, 207, 255, 0.3);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+  min-height: 34px;
+  padding: 9px 10px;
+}
+
+.overview-tile-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-height: 0;
+  padding: 14px;
+}
+
+.overview-tile {
+  background: rgba(20, 27, 36, 0.62);
+  border: 1px solid rgba(30, 45, 61, 0.84);
+  border-radius: 8px;
+  display: grid;
+  gap: 5px;
+  min-height: 72px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.overview-tile span {
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.overview-tile strong {
+  color: #e6edf3;
+  font-family: var(--font-display);
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-guide-card {
+  grid-column: 1 / -1;
+}
+
+.overview-checklist {
+  display: grid;
+  gap: 8px;
+}
+
+.overview-check-item {
+  align-items: center;
+  background: rgba(20, 27, 36, 0.58);
+  border: 1px solid rgba(30, 45, 61, 0.84);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 24px 90px minmax(0, 1fr);
+  min-height: 44px;
+  padding: 8px 10px;
+}
+
+.overview-check-icon svg {
+  color: var(--accent-green);
+}
+
+.overview-check-page {
+  color: var(--accent-cyan);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.overview-check-text {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
 .terminal-scroll {
   background: #0d1117;
   border: 1px solid rgba(30, 45, 61, 0.82);
@@ -2876,6 +3128,26 @@ button:focus-visible {
     grid-template-columns: 1fr;
     grid-template-rows: none;
     overflow: auto;
+  }
+
+  .overview-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-profile-row {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-tile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .overview-check-item {
+    grid-template-columns: 22px 80px minmax(0, 1fr);
   }
 
   .feedback-chart-card,

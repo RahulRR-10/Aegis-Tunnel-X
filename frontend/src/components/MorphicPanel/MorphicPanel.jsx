@@ -23,27 +23,6 @@ import {
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-/** Build size-distribution histogram from the WebSocket ring buffer. */
-function buildSizeHistogram(history, bucketWidth = 100) {
-  const counts = {};
-  const slice = history.slice(-500);
-  for (const frame of slice) {
-    // We don't have per-packet sizes in the WS frame, so we approximate
-    // from bytes_tx delta — for demo, simulate plausible bucket data.
-    const size = frame.bytes_tx || 0;
-    if (size === 0) continue;
-    // Use seq_counter changes to estimate packet sizes
-    const bucket = Math.floor((size % 1500) / bucketWidth) * bucketWidth;
-    counts[bucket] = (counts[bucket] || 0) + 1;
-  }
-  return Object.entries(counts)
-    .map(([bucket, count]) => ({
-      bucket: `${bucket}`,
-      observed: count,
-    }))
-    .sort((a, b) => Number(a.bucket) - Number(b.bucket));
-}
-
 /** Build target distribution buckets from profile params. */
 function buildTargetDistribution(profile, bucketWidth = 100, total = 100) {
   const dist = profile?.packet_size_distribution || {};
@@ -78,33 +57,22 @@ function mergeSizeData(profile, history) {
   const bucketWidth = 100;
   const target = buildTargetDistribution(profile, bucketWidth);
 
-  // Build synthetic observed from history if available
+  // Estimate observed packet sizes from real frame deltas.
   const observed = {};
   if (history.length > 2) {
     const slice = history.slice(-300);
-    const dist = profile?.packet_size_distribution || {};
-    const peaks = dist.peaks || [1400];
-    const weights = dist.weights || [1.0];
-    const wTotal = weights.reduce((s, w) => s + w, 0);
-
-    // Simulate observed data based on frame count
-    for (let i = 0; i < slice.length; i++) {
-      // Pick a peak based on weights
-      const r = (i * 7 + 13) % 100 / 100;
-      let cumW = 0;
-      let chosenPeak = peaks[0];
-      for (let p = 0; p < peaks.length; p++) {
-        cumW += (weights[p] || 0) / wTotal;
-        if (r < cumW) {
-          chosenPeak = peaks[p];
-          break;
-        }
+    for (let i = 1; i < slice.length; i++) {
+      const current = slice[i];
+      const previous = slice[i - 1];
+      const byteDelta = Math.max(0, Number(current.bytes_tx || 0) - Number(previous.bytes_tx || 0));
+      const packetDelta = Math.max(0, Number(current.pkts_tx || 0) - Number(previous.pkts_tx || 0));
+      if (byteDelta === 0 || packetDelta === 0) {
+        continue;
       }
-      // Add some noise
-      const noise = ((i * 31) % 200) - 100;
-      const size = Math.max(0, chosenPeak + noise);
-      const bucket = Math.floor(size / bucketWidth) * bucketWidth;
-      observed[bucket] = (observed[bucket] || 0) + 1;
+
+      const avgPacketSize = Math.max(1, Math.min(1500, Math.round(byteDelta / packetDelta)));
+      const bucket = Math.floor(avgPacketSize / bucketWidth) * bucketWidth;
+      observed[bucket] = (observed[bucket] || 0) + packetDelta;
     }
   }
 
@@ -475,6 +443,7 @@ export function MorphicPanel({ panel, socket }) {
   const Icon = panel.icon;
   const [morphic, setMorphic] = useState(null);
   const [switching, setSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState('');
   const [apiState, setApiState] = useState({ loading: true, error: null });
 
   // Fetch /api/morphic on mount and periodically
@@ -508,6 +477,7 @@ export function MorphicPanel({ panel, socket }) {
   // Profile switch handler
   const handleSwitch = useCallback(async (name) => {
     setSwitching(true);
+    setSwitchError('');
     try {
       const res = await fetch(`/api/profile/${encodeURIComponent(name)}`, {
         method: 'POST',
@@ -522,7 +492,7 @@ export function MorphicPanel({ panel, socket }) {
         setMorphic(await refreshRes.json());
       }
     } catch (err) {
-      console.error('Profile switch failed:', err);
+      setSwitchError(err.message || 'Profile switch failed');
     } finally {
       setSwitching(false);
     }
@@ -581,6 +551,7 @@ export function MorphicPanel({ panel, socket }) {
           profiles={profiles}
           switching={switching}
         />
+        {switchError ? <div className="panel-action-error">{switchError}</div> : null}
         <ProfileParamsCard
           profile={params}
           profileName={activeProfile}

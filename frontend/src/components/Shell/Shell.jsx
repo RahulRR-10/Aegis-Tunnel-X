@@ -5,6 +5,7 @@ import { CryptoPanel } from '../CryptoPanel/CryptoPanel.jsx';
 import { DemoPanel } from '../DemoPanel/DemoPanel.jsx';
 import { FeedbackPanel } from '../FeedbackPanel/FeedbackPanel.jsx';
 import { MorphicPanel } from '../MorphicPanel/MorphicPanel.jsx';
+import { OverviewPanel } from '../OverviewPanel/OverviewPanel.jsx';
 import { TunnelPanel } from '../TunnelPanel/TunnelPanel.jsx';
 import { TransportPanel } from '../TransportPanel/TransportPanel.jsx';
 import { PanelPlaceholder } from './PanelPlaceholder.jsx';
@@ -46,6 +47,8 @@ export function Shell({
             <DemoPanel panel={activePanel} socket={socket} status={status} />
           ) : activePanel.id === 'config' ? (
             <ConfigPanel panel={activePanel} socket={socket} status={status} />
+          ) : activePanel.id === 'overview' ? (
+            <OverviewPanel panel={activePanel} socket={socket} status={status} />
           ) : (
             <PanelPlaceholder
               panel={activePanel}
