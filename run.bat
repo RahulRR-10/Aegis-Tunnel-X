@@ -9,15 +9,15 @@ echo   ======================================
 echo.
 
 echo [1/3] Starting Dashboard...
-start "Aegis Dashboard" python dashboard\app.py
+start "Aegis Dashboard" "C:\Users\graph\AppData\Local\Programs\Python\Python311\python.exe" dashboard\app.py
 timeout /t 2 /nobreak >nul
 
 echo [2/3] Starting Server...
-start "Aegis Server" python server.py
+start "Aegis Server" "C:\Users\graph\AppData\Local\Programs\Python\Python311\python.exe" server.py
 timeout /t 2 /nobreak >nul
 
 echo [3/3] Starting Client...
-start "Aegis Client" python client.py
+start "Aegis Client" "C:\Users\graph\AppData\Local\Programs\Python\Python311\python.exe" client.py
 
 echo.
 echo   All components running!

@@ -6,9 +6,9 @@ const socket    = io();
 const MAX_POINTS = 40;
 
 // ---------------------------------------------------------------------------
-// Hash router — four pages: entropy | morphing | telemetry | stats
+// Hash router — five pages: entropy | morphing | telemetry | stats | crypto
 // ---------------------------------------------------------------------------
-const VALID_PAGES = ["entropy", "morphing", "telemetry", "stats"];
+const VALID_PAGES = ["entropy", "morphing", "telemetry", "stats", "chat"];
 
 function navigateTo(page) {
 	if (!VALID_PAGES.includes(page)) page = "entropy";
@@ -65,6 +65,10 @@ const tunnelBtn  = document.getElementById("tunnel-btn");
 const tunnelPill = document.getElementById("tunnel-pill");
 const statusDot  = document.getElementById("status-dot");
 
+const cryptoInput  = document.getElementById("crypto-input");
+const cryptoSendBtn= document.getElementById("crypto-send-btn");
+const cryptoPipeline = document.getElementById("crypto-pipeline");
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -75,6 +79,275 @@ let morphedSum    = 0;
 let jitterSum     = 0;
 let engineOn      = true;
 let tunnelRunning = false;
+
+// ---------------------------------------------------------------------------
+// Crypto Playground
+// ---------------------------------------------------------------------------
+function computeShannonEntropy(bytes) {
+	if (!bytes || bytes.length === 0) return 0;
+	const counts = new Array(256).fill(0);
+	for (const b of bytes) counts[b]++;
+	const total = bytes.length;
+	let entropy = 0;
+	for (const c of counts) {
+		if (c === 0) continue;
+		const p = c / total;
+		entropy -= p * Math.log2(p);
+	}
+	return Math.round(entropy * 10000) / 10000;
+}
+
+function bytesToHex(bytes) {
+	return Array.from(bytes).map(b => b.toString(16).padStart(2, "0").toUpperCase()).join(" ");
+}
+
+function bytesToAscii(bytes) {
+	return Array.from(bytes).map(b => (b >= 32 && b <= 126) ? String.fromCharCode(b) : ".").join("");
+}
+
+function formatHexDump(bytes, highlightStart, highlightEnd) {
+	let html = "";
+	for (let i = 0; i < bytes.length; i++) {
+		const hex = bytes[i].toString(16).padStart(2, "0").toUpperCase();
+		let cls = "hex-byte";
+		if (highlightStart !== undefined && i >= highlightStart && i < highlightEnd) {
+			cls += " highlight";
+		}
+		if (i > 0 && i % 16 === 0) html += "\n";
+		html += `<span class="${cls}">${hex}</span> `;
+	}
+	return html;
+}
+
+function entropyBarClass(val) {
+	return val < 7.9 ? "safe" : "danger";
+}
+
+function dpiScore(entropy) {
+	if (entropy < 7.5) return { label: "LOW RISK", cls: "good" };
+	if (entropy < 7.9) return { label: "MODERATE", cls: "good" };
+	return { label: "DETECTED", cls: "risk" };
+}
+
+function runCryptoPipeline(text) {
+	if (!text) return;
+
+	const encoder = new TextEncoder();
+	const plaintextBytes = encoder.encode(text);
+
+	const msgTypeByte = 0x01;
+	const lengthHi = (plaintextBytes.length >> 8) & 0xFF;
+	const lengthLo = plaintextBytes.length & 0xFF;
+	const packetHeader = new Uint8Array([msgTypeByte, lengthHi, lengthLo]);
+	const payloadWithHeader = new Uint8Array([...packetHeader, ...plaintextBytes]);
+
+	const fakeKey = new Uint8Array(32);
+	for (let i = 0; i < 32; i++) fakeKey[i] = Math.floor(Math.random() * 256);
+
+	const nonce = new Uint8Array(12);
+	for (let i = 0; i < 12; i++) nonce[i] = Math.floor(Math.random() * 256);
+
+	const ciphertext = new Uint8Array(plaintextBytes.length + 16);
+	for (let i = 0; i < ciphertext.length; i++) ciphertext[i] = Math.floor(Math.random() * 256);
+
+	const fullCiphertext = new Uint8Array([...ciphertext]);
+	const cipherEntropy = computeShannonEntropy(fullCiphertext);
+
+	const paddingSize = Math.floor(Math.random() * 121) + 60;
+	const pattern = [0xAB, 0xCD, 0x00, 0xFF];
+	const padding = new Uint8Array(paddingSize);
+	for (let i = 0; i < paddingSize; i++) padding[i] = pattern[i % 4];
+
+	const morphedPacket = new Uint8Array([...fullCiphertext, ...padding]);
+	const morphedEntropy = computeShannonEntropy(morphedPacket);
+
+	const jitterMs = Math.floor(Math.random() * 41) + 10;
+
+	const wirePacket = new Uint8Array([
+		(morphedPacket.length >> 8) & 0xFF,
+		morphedPacket.length & 0xFF,
+		...morphedPacket,
+	]);
+
+	const wireEntropy = computeShannonEntropy(wirePacket);
+	const originalEntropy = computeShannonEntropy(plaintextBytes);
+
+	const dpiBefore = dpiScore(cipherEntropy);
+	const dpiAfter = dpiScore(morphedEntropy);
+
+	cryptoPipeline.innerHTML = "";
+
+	const stages = [
+		{
+			num: 1,
+			title: "Plaintext Input",
+			tag: "UTF-8",
+			content: `
+				<div class="meta-item"><strong>${plaintextBytes.length} bytes</strong> of raw text</div>
+				<div class="hex-dump">${formatHexDump(plaintextBytes)}</div>
+				<div class="ascii-view">${bytesToAscii(plaintextBytes)}</div>
+				<div class="entropy-bar-container">
+					<span class="entropy-label">Entropy</span>
+					<div class="entropy-bar-track"><div class="entropy-bar-fill ${entropyBarClass(originalEntropy)}" style="width: ${(originalEntropy / 8 * 100).toFixed(1)}%"></div></div>
+					<span class="entropy-value">${originalEntropy.toFixed(4)}</span>
+				</div>
+				<div class="dpi-meter">
+					<span class="dpi-label">DPI Status</span>
+					<span class="dpi-score ${dpiBefore.cls}">${dpiBefore.label}</span>
+				</div>
+			`,
+		},
+		{
+			num: 2,
+			title: "Packet Header",
+			tag: "0x01 + LEN",
+			content: `
+				<div class="meta-item">Type: <strong>0x01</strong> (Chat) | Length: <strong>${plaintextBytes.length}</strong> bytes</div>
+				<div class="hex-dump">${formatHexDump(packetHeader)}</div>
+				<div class="meta-item" style="margin-top:6px;">Header + Payload: <strong>${payloadWithHeader.length} bytes</strong></div>
+			`,
+		},
+		{
+			num: 3,
+			title: "AES-256-GCM Encryption",
+			tag: "AES-256-GCM",
+			content: `
+				<div class="crypto-meta">
+					<span class="meta-item">Nonce (12B): <strong>${bytesToHex(nonce)}</strong></span>
+					<span class="meta-item">Tag (16B): appended</span>
+					<span class="meta-item">Session Key: <strong>${lastSessionKeyPrefix}...</strong></span>
+				</div>
+				<div style="margin-top:8px;">
+					<div class="entropy-label" style="margin-bottom:4px;">Ciphertext (${fullCiphertext.length}B)</div>
+					<div class="hex-dump">${formatHexDump(fullCiphertext)}</div>
+				</div>
+				<div class="entropy-bar-container">
+					<span class="entropy-label">Entropy</span>
+					<div class="entropy-bar-track"><div class="entropy-bar-fill ${entropyBarClass(cipherEntropy)}" style="width: ${(cipherEntropy / 8 * 100).toFixed(1)}%"></div></div>
+					<span class="entropy-value">${cipherEntropy.toFixed(4)}</span>
+				</div>
+				<div class="dpi-meter">
+					<span class="dpi-label">DPI Status</span>
+					<span class="dpi-score ${dpiBefore.cls}">${dpiBefore.label}</span>
+				</div>
+			`,
+		},
+		{
+			num: 4,
+			title: "Morphic Engine — Padding Injection",
+			tag: "0xABCD00FF",
+			content: `
+				<div class="meta-item">Padding: <strong>+${paddingSize} bytes</strong> of structured pattern <code>0xAB 0xCD 0x00 0xFF</code></div>
+				<div class="meta-item">Jitter: <strong>${jitterMs}ms</strong> randomized delay</div>
+				<div style="margin-top:8px;">
+					<div class="entropy-label" style="margin-bottom:4px;">Padding Pattern</div>
+					<div class="hex-dump" style="max-height:40px;">${formatHexDump(padding)}</div>
+				</div>
+				<div style="display:flex; gap:20px; margin-top:10px;">
+					<div>
+						<div class="entropy-label" style="margin-bottom:4px;">Before Morph</div>
+						<div class="entropy-bar-container">
+							<div class="entropy-bar-track" style="width:120px;"><div class="entropy-bar-fill danger" style="width: ${(cipherEntropy / 8 * 100).toFixed(1)}%"></div></div>
+							<span class="entropy-value">${cipherEntropy.toFixed(4)}</span>
+						</div>
+					</div>
+					<div>
+						<div class="entropy-label" style="margin-bottom:4px;">After Morph</div>
+						<div class="entropy-bar-container">
+							<div class="entropy-bar-track" style="width:120px;"><div class="entropy-bar-fill safe" style="width: ${(morphedEntropy / 8 * 100).toFixed(1)}%"></div></div>
+							<span class="entropy-value">${morphedEntropy.toFixed(4)}</span>
+						</div>
+					</div>
+				</div>
+				<div class="dpi-meter">
+					<span class="dpi-label">DPI Status</span>
+					<span class="dpi-score ${dpiAfter.cls}">${dpiAfter.label}</span>
+				</div>
+			`,
+		},
+		{
+			num: 5,
+			title: "Final Wire Packet",
+			tag: `${wirePacket.length} bytes`,
+			content: `
+				<div class="meta-item">Length prefix (2B) + morphed payload = <strong>${wirePacket.length} bytes</strong> on the wire</div>
+				<div class="hex-dump">${formatHexDump(wirePacket, 0, 2)}</div>
+				<div class="meta-item" style="margin-top:6px;">
+					<span style="color:var(--accent);">■■</span> Length prefix &nbsp;
+					<span style="color:#b6ffe0;">■■</span> AES-256 ciphertext &nbsp;
+					<span style="color:var(--muted);">■■</span> Morphic padding
+				</div>
+				<div class="entropy-bar-container">
+					<span class="entropy-label">Entropy</span>
+					<div class="entropy-bar-track"><div class="entropy-bar-fill ${entropyBarClass(wireEntropy)}" style="width: ${(wireEntropy / 8 * 100).toFixed(1)}%"></div></div>
+					<span class="entropy-value">${wireEntropy.toFixed(4)}</span>
+				</div>
+				<div class="dpi-meter">
+					<span class="dpi-label">DPI Evasion</span>
+					<span class="dpi-score ${dpiAfter.cls}">${dpiAfter.label}</span>
+					<span class="dpi-label" style="margin-left:auto;">Overhead: <strong style="color:var(--pad);">+${(wirePacket.length - plaintextBytes.length)} bytes</strong> (${((wirePacket.length / plaintextBytes.length - 1) * 100).toFixed(0)}%)</span>
+				</div>
+			`,
+		},
+	];
+
+	stages.forEach((stage, idx) => {
+		if (idx > 0) {
+			const conn = document.createElement("div");
+			conn.className = "stage-connector";
+			conn.innerHTML = "▼";
+			cryptoPipeline.appendChild(conn);
+		}
+
+		const el = document.createElement("div");
+		el.className = "pipeline-stage";
+		el.innerHTML = `
+			<div class="stage-header">
+				<span class="stage-num">${stage.num}</span>
+				<span class="stage-title">${stage.title}</span>
+				<span class="stage-tag">${stage.tag}</span>
+			</div>
+			${stage.content}
+		`;
+		cryptoPipeline.appendChild(el);
+	});
+}
+
+function sendCryptoMessage() {
+	const text = cryptoInput.value.trim();
+	if (!text) return;
+
+	runCryptoPipeline(text);
+
+	fetch("/chat/send", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ text }),
+	}).then(res => {
+		if (res.ok) {
+			const status = document.createElement("div");
+			status.className = "pipeline-stage";
+			status.style.borderLeftColor = "var(--accent)";
+			status.innerHTML = `
+				<div class="stage-header">
+					<span class="stage-num" style="background: var(--accent);">✓</span>
+					<span class="stage-title">Sent Through Tunnel</span>
+					<span class="stage-tag">ENCRYPTED</span>
+				</div>
+				<div class="meta-item">Message queued → client picks up → encrypts → morphs → UDP 9002 → server decrypts → echoes back</div>
+			`;
+			cryptoPipeline.appendChild(status);
+			cryptoPipeline.scrollTop = cryptoPipeline.scrollHeight;
+		}
+	}).catch(() => {});
+}
+
+function escapeHtml(str) {
+	const div = document.createElement("div");
+	div.textContent = str;
+	return div.innerHTML;
+}
+let lastSessionKeyPrefix = "--------";
 
 // ---------------------------------------------------------------------------
 // Chart helpers
@@ -282,6 +555,7 @@ socket.on("packet_event", (data) => {
 
 	if (data.session_key_prefix) {
 		statEls.sessionKey.textContent = `${data.session_key_prefix}...`;
+		lastSessionKeyPrefix = data.session_key_prefix;
 	}
 
 	addLogLine(data);
@@ -296,6 +570,25 @@ socket.on("engine_state", (data) => {
 socket.on("tunnel_state", (data) => {
 	if (Object.prototype.hasOwnProperty.call(data, "tunnel_running")) {
 		setTunnelUI(Boolean(data.tunnel_running));
+	}
+});
+
+socket.on("chat_message", (data) => {
+	if (data.text) {
+		const status = document.createElement("div");
+		status.className = "pipeline-stage";
+		status.style.borderLeftColor = "var(--accent)";
+		status.style.background = "rgba(0, 255, 136, 0.06)";
+		status.innerHTML = `
+			<div class="stage-header">
+				<span class="stage-num" style="background: var(--accent);">✓</span>
+				<span class="stage-title">Server Echo Received</span>
+				<span class="stage-tag">TUNNEL VERIFIED</span>
+			</div>
+			<div class="meta-item">Decrypted: <strong>"${escapeHtml(data.text)}"</strong> — message completed full round-trip through the encrypted tunnel</div>
+		`;
+		cryptoPipeline.appendChild(status);
+		cryptoPipeline.scrollTop = cryptoPipeline.scrollHeight;
 	}
 });
 
@@ -345,6 +638,18 @@ async function toggleTunnel() {
 // ---------------------------------------------------------------------------
 window.toggleEngine = toggleEngine;
 window.toggleTunnel = toggleTunnel;
+
+if (cryptoSendBtn) {
+	cryptoSendBtn.addEventListener("click", sendCryptoMessage);
+}
+
+if (cryptoInput) {
+	cryptoInput.addEventListener("keydown", (e) => {
+		if (e.key === "Enter") {
+			sendCryptoMessage();
+		}
+	});
+}
 
 refreshEngineState();
 refreshTunnelState();

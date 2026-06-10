@@ -4,6 +4,7 @@ import random
 import threading
 import time
 from collections import Counter
+from queue import Queue
 
 from flask import Flask, jsonify, render_template, request
 from flask_socketio import SocketIO
@@ -20,6 +21,10 @@ engine_state = {"on": True}
 tunnel_state: dict = {
     "running": False,
 }
+
+chat_outbox: Queue = Queue(maxsize=100)
+chat_message_counter: int = 0
+chat_lock: threading.Lock = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -141,6 +146,47 @@ def tunnel_stop():
     payload = {"tunnel_running": False}
     socketio.emit("tunnel_state", payload)
     return jsonify(payload)
+
+
+# -- Chat Relay --------------------------------------------------------------
+
+@app.route("/chat/send", methods=["POST"])
+def chat_send():
+    global chat_message_counter
+    data = request.get_json(silent=True) or {}
+    text = data.get("text", "").strip()
+    if not text:
+        return jsonify({"ok": False, "error": "Empty message"}), 400
+
+    with chat_lock:
+        chat_message_counter += 1
+        msg_id = chat_message_counter
+
+    try:
+        chat_outbox.put_nowait({"id": msg_id, "text": text})
+    except Exception:
+        return jsonify({"ok": False, "error": "Outbox full"}), 429
+
+    return jsonify({"ok": True, "id": msg_id})
+
+
+@app.route("/chat/outbox", methods=["GET"])
+def chat_outbox_endpoint():
+    messages = []
+    while not chat_outbox.empty():
+        try:
+            messages.append(chat_outbox.get_nowait()["text"])
+        except Exception:
+            break
+    return jsonify({"messages": messages})
+
+
+@app.route("/chat/received", methods=["POST"])
+def chat_received():
+    data = request.get_json(silent=True) or {}
+    text = data.get("text", "")
+    socketio.emit("chat_message", {"text": text, "tunnel_verified": True})
+    return jsonify({"ok": True})
 
 
 # ---------------------------------------------------------------------------

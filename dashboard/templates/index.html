@@ -456,6 +456,218 @@
       #topbar { flex-wrap: wrap; height: auto; padding: 10px 14px; gap: 8px; }
       #stats-grid { grid-template-columns: 1fr; }
     }
+
+    /* ================================================================== */
+    /* Crypto Playground                                                   */
+    /* ================================================================== */
+    .pipeline-stage {
+      background: rgba(0, 255, 136, 0.03);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 8px;
+      padding: 14px 16px;
+      animation: stageIn 0.35s ease;
+    }
+
+    @keyframes stageIn {
+      from { opacity: 0; transform: translateX(-12px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .stage-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .stage-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #000;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .stage-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-hi);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .stage-tag {
+      font-size: 8px;
+      padding: 2px 7px;
+      border-radius: 3px;
+      background: rgba(0, 255, 136, 0.1);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      letter-spacing: 0.8px;
+    }
+
+    .hex-dump {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(0, 255, 136, 0.08);
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 10.5px;
+      color: #b6ffe0;
+      line-height: 1.65;
+      word-break: break-all;
+      max-height: 80px;
+      overflow-y: auto;
+      margin: 6px 0;
+    }
+
+    .hex-byte {
+      display: inline-block;
+      padding: 0 1px;
+      transition: color 0.2s;
+    }
+
+    .hex-byte.highlight {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .hex-byte.dim {
+      color: var(--muted);
+      opacity: 0.5;
+    }
+
+    .ascii-view {
+      font-size: 10px;
+      color: var(--muted);
+      padding: 4px 0 0;
+      border-top: 1px solid rgba(0, 255, 136, 0.08);
+      margin-top: 4px;
+      letter-spacing: 0.3px;
+    }
+
+    .entropy-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0;
+    }
+
+    .entropy-label {
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      width: 60px;
+      flex-shrink: 0;
+    }
+
+    .entropy-bar-track {
+      flex: 1;
+      height: 6px;
+      background: rgba(0, 255, 136, 0.08);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .entropy-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+
+    .entropy-bar-fill.safe {
+      background: linear-gradient(90deg, #00ff88, #00cc6a);
+    }
+
+    .entropy-bar-fill.danger {
+      background: linear-gradient(90deg, #ff4d4f, #ff7875);
+    }
+
+    .entropy-value {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      width: 48px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .dpi-meter {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .dpi-label {
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .dpi-score {
+      font-size: 13px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .dpi-score.good {
+      color: var(--accent);
+      background: rgba(0, 255, 136, 0.12);
+      border: 1px solid var(--accent);
+    }
+
+    .dpi-score.risk {
+      color: var(--warn);
+      background: rgba(255, 77, 79, 0.12);
+      border: 1px solid var(--warn);
+    }
+
+    .stage-connector {
+      display: flex;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 14px;
+      opacity: 0.4;
+      line-height: 1;
+      padding: 2px 0;
+    }
+
+    .crypto-meta {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .meta-item {
+      font-size: 9.5px;
+      color: var(--muted);
+    }
+
+    .meta-item strong {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    #crypto-input:focus {
+      border-color: var(--border-glow) !important;
+      box-shadow: 0 0 6px rgba(0, 255, 136, 0.15);
+    }
+
+    #crypto-send-btn:hover {
+      background: rgba(0, 255, 136, 0.12) !important;
+    }
   </style>
 </head>
 <body>
@@ -485,6 +697,10 @@
       <a class="nav-item" data-page="stats" id="nav-stats">
         <span class="nav-icon">⚙️</span>
         <span class="nav-label">System Stats</span>
+      </a>
+      <a class="nav-item" data-page="chat" id="nav-chat">
+        <span class="nav-icon">🔐</span>
+        <span class="nav-label">Crypto Playground</span>
       </a>
     </div>
 
@@ -615,6 +831,37 @@
               <span class="stat-label">Engine Status</span>
               <span class="stat-value" id="s-engine">ON</span>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- PAGE 5: CRYPTO PLAYGROUND                                     -->
+      <!-- ============================================================= -->
+      <section class="page" data-page="chat" id="page-chat">
+        <div class="info-card">
+          <strong>Crypto Playground</strong> lets you watch every layer of the encryption pipeline.
+          Type any text below and see it transformed step-by-step: plaintext bytes → packet header
+          → <strong>AES-256-GCM</strong> ciphertext → <strong>Morphic Engine</strong> padding →
+          final wire packet. Each stage shows hex dumps, entropy metrics, and a
+          <span class="warn-t">DPI evasion score</span>.
+        </div>
+
+        <div style="display: flex; gap: 8px; flex-shrink: 0;">
+          <input
+            id="crypto-input"
+            type="text"
+            placeholder="Type text to encrypt through the tunnel..."
+            style="flex: 1; background: rgba(0, 255, 136, 0.04); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 12px; outline: none;"
+          />
+          <button id="crypto-send-btn" class="ctrl-btn" style="border-color: var(--accent); color: var(--accent); padding: 10px 20px;">
+            ANALYZE & SEND
+          </button>
+        </div>
+
+        <div id="crypto-pipeline" style="display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 0; padding-right: 4px; flex: 1;">
+          <div style="text-align: center; color: var(--muted); font-size: 11px; padding: 60px 0; letter-spacing: 1px;">
+            Type a message and press ANALYZE to see the encryption pipeline in action
           </div>
         </div>
       </section>

@@ -12,9 +12,11 @@ Write-Host "  ║       AEGIS-TUNNEL X  LAUNCHER       ║" -ForegroundColor Cya
 Write-Host "  ╚══════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
+$py = "C:\Users\graph\AppData\Local\Programs\Python\Python311\python.exe"
+
 # --- 1. Dashboard ---
 Write-Host "[1/3] Starting Dashboard..." -ForegroundColor Green
-$dashboard = Start-Process -PassThru -FilePath "python" `
+$dashboard = Start-Process -PassThru -FilePath $py `
     -ArgumentList "$projectDir\dashboard\app.py" `
     -WorkingDirectory $projectDir `
     -WindowStyle Normal
@@ -23,7 +25,7 @@ Start-Sleep -Seconds 2   # give Flask time to bind port 5000
 
 # --- 2. Server ---
 Write-Host "[2/3] Starting Server..." -ForegroundColor Green
-$server = Start-Process -PassThru -FilePath "python" `
+$server = Start-Process -PassThru -FilePath $py `
     -ArgumentList "$projectDir\server.py" `
     -WorkingDirectory $projectDir `
     -WindowStyle Normal
@@ -32,7 +34,7 @@ Start-Sleep -Seconds 2   # give server time to listen on TCP 9000
 
 # --- 3. Client ---
 Write-Host "[3/3] Starting Client..." -ForegroundColor Green
-$client = Start-Process -PassThru -FilePath "python" `
+$client = Start-Process -PassThru -FilePath $py `
     -ArgumentList "$projectDir\client.py" `
     -WorkingDirectory $projectDir `
     -WindowStyle Normal

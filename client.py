@@ -24,7 +24,8 @@ except Exception as exc:
 
 from crypto import encrypt
 from morphic import morph_packet
-from shared.config import SERVER_IP, HANDSHAKE_PORT, DATA_PORT
+from shared.config import SERVER_IP, HANDSHAKE_PORT, DATA_PORT, CHAT_PORT
+from shared.chat import pack_chat_message
 
 DASHBOARD_BASE_URL = os.getenv("DASHBOARD_BASE_URL", "http://127.0.0.1:5000").rstrip("/")
 
@@ -111,8 +112,17 @@ def push_stats(stats: dict) -> None:
         with urllib.request.urlopen(request, timeout=1.5):
             pass
     except (OSError, urllib.error.URLError, TimeoutError):
-        # Dashboard is optional and should never break the tunnel path.
         pass
+
+
+def fetch_chat_outbox() -> list:
+    request = urllib.request.Request(f"{DASHBOARD_BASE_URL}/chat/outbox", method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=1.5) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            return data.get("messages", [])
+    except (OSError, urllib.error.URLError, TimeoutError, json.JSONDecodeError):
+        return []
 
 
 def main() -> None:
@@ -121,6 +131,7 @@ def main() -> None:
     packet_interval_ms = env_int("PACKET_INTERVAL_MS", 400)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    chat_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     print(
         "[CLIENT] Continuous packet loop started. "
         f"interval={packet_interval_ms}ms, dashboard={DASHBOARD_BASE_URL}"
@@ -129,13 +140,21 @@ def main() -> None:
 
     i = 0
     while True:
-        # ── Tunnel gate: poll dashboard; block here while stopped ────────
         tunnel_running = fetch_tunnel_state(default=False)
         if not tunnel_running:
-            time.sleep(0.5)   # lightweight poll while paused
+            time.sleep(0.5)
             continue
 
-        # ── Tunnel is running — send one packet ─────────────────────────
+        pending = fetch_chat_outbox()
+        for msg in pending:
+            chat_payload = pack_chat_message(msg)
+            chat_encrypted = encrypt(chat_payload, session_key)
+            chat_stats = morph_packet(chat_encrypted, engine_on=True)
+            send_data = chat_stats.get("packet", chat_encrypted)
+            length_header = len(chat_encrypted).to_bytes(2, "big")
+            chat_sock.sendto(length_header + send_data, (SERVER_IP, CHAT_PORT))
+            print(f"[CHAT] Sent encrypted message: {msg}")
+
         engine_on = fetch_engine_state(default_engine_on)
         payload = f"TEST PACKET {i} - hello from client".encode()
         encrypted = encrypt(payload, session_key)
