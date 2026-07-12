@@ -1,0 +1,16 @@
+liboqs not found, installing it in C:\Users\graph\_oqs
+Installing in 5 seconds...
+Installing in 4 seconds...
+Installing in 3 seconds...
+Installing in 2 seconds...
+Installing in 1 seconds...
+Error installing liboqs.
+Traceback (most recent call last):
+  File "C:\Users\graph\AppData\Local\Programs\Python\Python311\Lib\site-packages\oqs\oqs.py", line 240, in _load_liboqs
+    liboqs = _load_shared_obj(
+             ^^^^^^^^^^^^^^^^^
+  File "C:\Users\graph\AppData\Local\Programs\Python\Python311\Lib\site-packages\oqs\oqs.py", line 139, in _load_shared_obj
+    raise RuntimeError(msg)
+RuntimeError: No oqs shared libraries found
+ * Serving Flask app 'dashboard.app'
+ * Debug mode: off

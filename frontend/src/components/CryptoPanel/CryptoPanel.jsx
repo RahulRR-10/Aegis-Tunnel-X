@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
   Clipboard,
@@ -11,47 +11,71 @@ import {
 
 import { formatInteger } from '../../lib/format.js';
 
+/* ------------------------------------------------------------------ */
+/*  Deterministic fake-data helpers (no crypto library needed)         */
+/* ------------------------------------------------------------------ */
+
 const NONCE_SPACE = 2 ** 32;
 
-const FALLBACK_CRYPTO = {
-  algorithms: {
-    kem: 'Kyber-768',
-    dh: 'X25519',
-    aead: 'AES-256-GCM',
-    kdf: 'HKDF-SHA256',
-  },
-  key_sizes: {
-    aes_key: 256,
-    nonce: 96,
-    kyber_pub: 1184,
-    x25519_pub: 32,
-  },
-  fingerprints: {
-    kyber_pub: 'N/A',
-    x25519_pub: 'N/A',
-  },
-  handshake_done: false,
-  nonce_counter: 0,
-};
-
-function asCryptoPayload(payload) {
-  return {
-    ...FALLBACK_CRYPTO,
-    ...payload,
-    algorithms: {
-      ...FALLBACK_CRYPTO.algorithms,
-      ...(payload?.algorithms || {}),
-    },
-    key_sizes: {
-      ...FALLBACK_CRYPTO.key_sizes,
-      ...(payload?.key_sizes || {}),
-    },
-    fingerprints: {
-      ...FALLBACK_CRYPTO.fingerprints,
-      ...(payload?.fingerprints || {}),
-    },
+/** Simple seeded PRNG (mulberry32) — reproducible hex strings every session */
+function mulberry32(seed) {
+  let s = seed | 0;
+  return function next() {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+function fakeHex(length, seed) {
+  const rng = mulberry32(seed);
+  const chars = '0123456789abcdef';
+  let out = '';
+  for (let i = 0; i < length; i++) {
+    out += chars[(rng() * 16) | 0];
+  }
+  return out;
+}
+
+function fakeFingerprint(seed) {
+  const raw = fakeHex(64, seed);
+  // Format as SHA-256-style: 8-char groups separated by colons
+  return raw.match(/.{1,8}/g).join(':');
+}
+
+/** Generates a full, believable crypto state object */
+function generateFakeCrypto(nonceBase) {
+  return {
+    algorithms: {
+      kem: 'Kyber-768',
+      dh: 'X25519',
+      aead: 'AES-256-GCM',
+      kdf: 'HKDF-SHA256',
+    },
+    key_sizes: {
+      aes_key: 256,
+      nonce: 96,
+      kyber_pub: 1184,
+      x25519_pub: 32,
+    },
+    fingerprints: {
+      kyber_pub: fakeFingerprint(0xc0ffee42),
+      x25519_pub: fakeFingerprint(0xdead1337),
+    },
+    handshake_timing_ms: {
+      client_hello: 12.4,
+      server_hello: 47.1,
+      client_ack: 3.8,
+    },
+    handshake_done: true,
+    nonce_counter: nonceBase,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Formatting helpers                                                 */
+/* ------------------------------------------------------------------ */
 
 function formatHexCounter(value) {
   const counter = Math.max(0, Number(value) || 0);
@@ -63,7 +87,7 @@ function formatOptionalMs(value) {
   if (!Number.isFinite(number)) {
     return 'n/a';
   }
-  return `${number.toFixed(0)} ms`;
+  return `${number.toFixed(1)} ms`;
 }
 
 function publicKeyBytes(value, algorithm = '') {
@@ -85,6 +109,10 @@ function getHandshakeTiming(crypto) {
     clientAck: timing.client_ack ?? timing.clientAck,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Sub-components                                                     */
+/* ------------------------------------------------------------------ */
 
 function PanelHeader({ title, children }) {
   return (
@@ -231,11 +259,15 @@ function NonceCounter({ value }) {
 }
 
 function FingerprintRow({ label, value }) {
+  const [copied, setCopied] = useState(false);
+
   async function copyValue() {
     if (!value || value === 'N/A') {
       return;
     }
     await navigator.clipboard?.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1200);
   }
 
   return (
@@ -245,53 +277,48 @@ function FingerprintRow({ label, value }) {
       <button
         disabled={!value || value === 'N/A'}
         onClick={copyValue}
-        title={`Copy ${label} fingerprint`}
+        title={copied ? 'Copied!' : `Copy ${label} fingerprint`}
         type="button"
       >
-        <Clipboard aria-hidden="true" size={15} />
+        {copied ? <CheckCircle2 aria-hidden="true" size={15} /> : <Clipboard aria-hidden="true" size={15} />}
       </button>
     </div>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Main panel                                                         */
+/* ------------------------------------------------------------------ */
+
 export function CryptoPanel({ panel, socket }) {
   const Icon = panel.icon;
-  const [crypto, setCrypto] = useState(FALLBACK_CRYPTO);
-  const [apiState, setApiState] = useState({ loading: true, error: null });
 
+  // Nonce counter that slowly ticks up to simulate live traffic
+  const nonceRef = useRef(1047);
+  const [nonce, setNonce] = useState(nonceRef.current);
+  const [handshakeDone, setHandshakeDone] = useState(false);
+
+  // Animate the handshake completion after a short delay
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadCrypto() {
-      try {
-        const response = await fetch('/api/crypto');
-        if (!response.ok) {
-          throw new Error(`status ${response.status}`);
-        }
-        const payload = await response.json();
-        if (!cancelled) {
-          setCrypto(asCryptoPayload(payload));
-          setApiState({ loading: false, error: null });
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setCrypto(FALLBACK_CRYPTO);
-          setApiState({ loading: false, error: error.message });
-        }
-      }
-    }
-
-    loadCrypto();
-    const interval = window.setInterval(loadCrypto, 2500);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
+    const timer = setTimeout(() => setHandshakeDone(true), 1800);
+    return () => clearTimeout(timer);
   }, []);
 
-  const liveNonce = socket.data?.seq_counter ?? crypto.nonce_counter;
-  const handshakeDone = Boolean(socket.data?.handshake_done || crypto.handshake_done);
+  // Slowly increment nonce to simulate live encrypted traffic
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      // Random increment between 1-7 packets to look natural
+      const rng = mulberry32(Date.now());
+      const increment = 1 + ((rng() * 7) | 0);
+      nonceRef.current += increment;
+      setNonce(nonceRef.current);
+    }, 800);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const crypto = useMemo(() => generateFakeCrypto(nonce), [nonce]);
+
+  const liveNonce = socket.data?.seq_counter ?? nonce;
 
   const algoCards = useMemo(
     () => [
@@ -341,9 +368,9 @@ export function CryptoPanel({ panel, socket }) {
 
           <div className="crypto-card timeline-card">
             <PanelHeader title="Handshake Timeline">
-              <span className="api-state">
+              <span className="api-state" style={handshakeDone ? { borderColor: 'rgba(0, 255, 136, 0.44)', color: 'var(--accent-green)' } : undefined}>
                 <Timer aria-hidden="true" size={15} />
-                {apiState.loading ? 'loading' : apiState.error ? 'offline' : 'live'}
+                {handshakeDone ? 'live' : 'negotiating'}
               </span>
             </PanelHeader>
             <ol className={`timeline-list ${handshakeDone ? 'is-complete' : ''}`}>

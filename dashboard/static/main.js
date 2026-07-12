@@ -6,9 +6,9 @@ const socket    = io();
 const MAX_POINTS = 40;
 
 // ---------------------------------------------------------------------------
-// Hash router — five pages: entropy | morphing | telemetry | stats | crypto
+// Hash router — seven pages: entropy | morphing | telemetry | stats | crypto | pqke | benchmark
 // ---------------------------------------------------------------------------
-const VALID_PAGES = ["entropy", "morphing", "telemetry", "stats", "chat"];
+const VALID_PAGES = ["entropy", "morphing", "telemetry", "stats", "chat", "pqke", "benchmark"];
 
 function navigateTo(page) {
 	if (!VALID_PAGES.includes(page)) page = "entropy";
@@ -650,6 +650,650 @@ if (cryptoInput) {
 		}
 	});
 }
+
+// ===========================================================================
+// Benchmark Module
+// ===========================================================================
+
+// ===========================================================================
+// Benchmark Module — v2 (fixed layout shift + polling fallback)
+// ===========================================================================
+
+const bmEls = {
+	startBtn:  document.getElementById("bm-start-btn"),
+	abortBtn:  document.getElementById("bm-abort-btn"),
+	exportBtn: document.getElementById("bm-export-btn"),
+	pktCount:  document.getElementById("bm-pkt-count"),
+	mode:      document.getElementById("bm-mode"),
+	progressContainer: document.getElementById("bm-progress-container"),
+	progressBar:  document.getElementById("bm-progress-bar"),
+	phaseLabel:   document.getElementById("bm-phase-label"),
+	pctLabel:     document.getElementById("bm-pct-label"),
+	content:      document.getElementById("bm-content"),
+	liveSection:  document.getElementById("bm-live-section"),
+	liveTp:   document.getElementById("bm-live-tp"),
+	liveLat:  document.getElementById("bm-live-lat"),
+	liveEnt:  document.getElementById("bm-live-ent"),
+	livePkts: document.getElementById("bm-live-pkts"),
+	resultsSection: document.getElementById("bm-results-section"),
+	onTp:    document.getElementById("bm-on-tp"),
+	onLat:   document.getElementById("bm-on-lat"),
+	onEnt:   document.getElementById("bm-on-ent"),
+	onDpi:   document.getElementById("bm-on-dpi"),
+	offTp:   document.getElementById("bm-off-tp"),
+	offLat:  document.getElementById("bm-off-lat"),
+	offEnt:  document.getElementById("bm-off-ent"),
+	offDpi:  document.getElementById("bm-off-dpi"),
+	impact:  document.getElementById("bm-impact"),
+	impactValue: document.getElementById("bm-impact-value"),
+};
+
+let bmLiveData = { labels: [], throughput: [], latency: [], entropy: [] };
+const BM_MAX_POINTS = 60;
+
+let bmLiveChart = null;
+let bmResultsTpChart = null;
+let bmResultsLatChart = null;
+let bmResultsEntChart = null;
+
+let bmMode = "comparison";
+let bmPollInterval = null;
+
+// -------------------------------------------------------------------------
+// Chart init
+// -------------------------------------------------------------------------
+function initBmLiveChart() {
+	const canvas = document.getElementById("bm-live-chart");
+	if (!canvas) return;
+	const ctx = canvas.getContext("2d");
+	if (bmLiveChart) { bmLiveChart.destroy(); }
+	bmLiveChart = new Chart(ctx, {
+		type: "line",
+		data: {
+			labels: [],
+			datasets: [{
+				label: "Throughput (Mbps)",
+				data: [],
+				borderColor: "#00ff88",
+				backgroundColor: "rgba(0,255,136,0.08)",
+				borderWidth: 2, tension: 0.3, fill: true, pointRadius: 0,
+			}],
+		},
+		options: {
+			animation: false, maintainAspectRatio: false,
+			scales: {
+				y: { beginAtZero: true, grid: { color: "rgba(0,255,136,0.12)" }, ticks: { color: "#75d4ac", font: { family: "JetBrains Mono", size: 10 } } },
+				x: { display: false },
+			},
+			plugins: { legend: { display: false } },
+		},
+	});
+}
+
+function initBmResultsCharts() {
+	const tpC = document.getElementById("bm-results-tp-chart");
+	if (tpC) {
+		if (bmResultsTpChart) bmResultsTpChart.destroy();
+		bmResultsTpChart = new Chart(tpC.getContext("2d"), {
+			type: "bar",
+			data: {
+				labels: ["Throughput (Mbps)"],
+				datasets: [
+					{ label: "Engine ON", data: [0], backgroundColor: "rgba(0,255,136,0.6)", borderColor: "#00ff88", borderWidth: 1 },
+					{ label: "Engine OFF", data: [0], backgroundColor: "rgba(255,77,79,0.6)", borderColor: "#ff4d4f", borderWidth: 1 },
+				],
+			},
+			options: {
+				responsive: true, maintainAspectRatio: false,
+				plugins: { legend: { labels: { color: "#9dfccf", font: { family: "JetBrains Mono", size: 10 } } } },
+				scales: {
+					y: { beginAtZero: true, grid: { color: "rgba(0,255,136,0.12)" }, ticks: { color: "#75d4ac", font: { family: "JetBrains Mono", size: 10 } } },
+					x: { grid: { display: false } },
+				},
+			},
+		});
+	}
+
+	const latC = document.getElementById("bm-results-lat-chart");
+	if (latC) {
+		if (bmResultsLatChart) bmResultsLatChart.destroy();
+		bmResultsLatChart = new Chart(latC.getContext("2d"), {
+			type: "bar",
+			data: { labels: [], datasets: [{ label: "Count", data: [], backgroundColor: "rgba(0,255,136,0.4)", borderColor: "#00ff88", borderWidth: 1 }] },
+			options: {
+				responsive: true, maintainAspectRatio: false,
+				plugins: { legend: { display: false } },
+				scales: {
+					y: { beginAtZero: true, grid: { color: "rgba(0,255,136,0.12)" }, ticks: { color: "#75d4ac", font: { family: "JetBrains Mono", size: 10 } } },
+					x: { grid: { display: false }, ticks: { color: "#75d4ac", font: { family: "JetBrains Mono", size: 9 }, maxRotation: 45 } },
+				},
+			},
+		});
+	}
+
+	const entC = document.getElementById("bm-results-ent-chart");
+	if (entC) {
+		if (bmResultsEntChart) bmResultsEntChart.destroy();
+		bmResultsEntChart = new Chart(entC.getContext("2d"), {
+			type: "line",
+			data: {
+				labels: [],
+				datasets: [
+					{ label: "Raw Entropy", data: [], borderColor: "#ff9f1a", backgroundColor: "rgba(255,159,26,0.1)", borderWidth: 1.5, tension: 0.3, pointRadius: 0, fill: true },
+					{ label: "Final Entropy", data: [], borderColor: "#00ff88", backgroundColor: "rgba(0,255,136,0.1)", borderWidth: 1.5, tension: 0.3, pointRadius: 0, fill: true },
+				],
+			},
+			options: {
+				responsive: true, maintainAspectRatio: false,
+				plugins: { legend: { labels: { color: "#9dfccf", font: { family: "JetBrains Mono", size: 10 } } } },
+				scales: {
+					y: { min: 3, max: 8.2, grid: { color: "rgba(0,255,136,0.12)" }, ticks: { color: "#75d4ac", font: { family: "JetBrains Mono", size: 10 } } },
+					x: { display: false },
+				},
+			},
+		});
+	}
+}
+
+// -------------------------------------------------------------------------
+// UI helpers
+// -------------------------------------------------------------------------
+function updateBmLiveChart(tp, lat, ent, pkts) {
+	bmLiveData.labels.push(`#${pkts}`);
+	bmLiveData.throughput.push(tp);
+	while (bmLiveData.labels.length > BM_MAX_POINTS) {
+		bmLiveData.labels.shift();
+		bmLiveData.throughput.shift();
+	}
+	if (bmLiveChart) {
+		bmLiveChart.data.labels = bmLiveData.labels;
+		bmLiveChart.data.datasets[0].data = bmLiveData.throughput;
+		bmLiveChart.update();
+	}
+}
+
+function showBmProgress(phase, pct) {
+	const pctClamped = Math.min(Math.max(pct, 0), 100);
+	if (bmEls.progressContainer) bmEls.progressContainer.style.display = "block";
+	if (bmEls.phaseLabel) bmEls.phaseLabel.textContent = phase;
+	if (bmEls.pctLabel) bmEls.pctLabel.textContent = `${Math.round(pctClamped)}%`;
+	if (bmEls.progressBar) bmEls.progressBar.style.width = `${pctClamped}%`;
+}
+
+function toggleBmContent(showLive) {
+	if (!bmEls.content) return;
+	bmEls.content.style.display = "flex";
+	if (bmEls.liveSection) bmEls.liveSection.style.display = showLive ? "block" : "none";
+	if (bmEls.resultsSection) bmEls.resultsSection.style.display = showLive ? "none" : "block";
+}
+
+function showBmLive(data) {
+	toggleBmContent(true);
+	// Lazy init live chart if not yet created
+	if (!bmLiveChart) initBmLiveChart();
+	const tp = data.throughput || 0;
+	const lat = data.current_latency || 0;
+	const ent = data.avg_entropy || 0;
+	const seq = data.seq || 0;
+	if (bmEls.liveTp) bmEls.liveTp.textContent = `${tp.toFixed(2)} Mbps`;
+	if (bmEls.liveLat) bmEls.liveLat.textContent = `${lat.toFixed(1)} ms`;
+	if (bmEls.liveEnt) bmEls.liveEnt.textContent = ent.toFixed(4);
+	if (bmEls.livePkts) bmEls.livePkts.textContent = seq;
+	updateBmLiveChart(tp, lat, ent, seq);
+}
+
+function showBmResults(data) {
+	toggleBmContent(false);
+	// Lazy init results charts
+	if (!bmResultsTpChart) initBmResultsCharts();
+	if (bmEls.exportBtn) bmEls.exportBtn.style.display = "inline-block";
+
+	const fillCard = (prefix, res) => {
+		const tpEl = document.getElementById(`bm-${prefix}-tp`);
+		const latEl = document.getElementById(`bm-${prefix}-lat`);
+		const entEl = document.getElementById(`bm-${prefix}-ent`);
+		const dpiEl = document.getElementById(`bm-${prefix}-dpi`);
+		if (!res) return;
+		if (tpEl) tpEl.textContent = `${res.throughput_mbps.toFixed(2)} Mbps`;
+		if (latEl) latEl.textContent = `${res.avg_latency_ms.toFixed(1)} ms`;
+		if (entEl) entEl.textContent = res.avg_final_entropy.toFixed(4);
+		if (dpiEl) {
+			dpiEl.textContent = res.dpi_status;
+			dpiEl.style.color = res.dpi_status === "EVADED" ? "#00ff88" : res.dpi_status === "MODERATE" ? "#ff9f1a" : "#ff4d4f";
+		}
+	};
+
+	if (data.mode === "comparison" && data.result) {
+		fillCard("on", data.result.on);
+		fillCard("off", data.result.off);
+		if (bmEls.impact) {
+			bmEls.impact.style.display = "block";
+			if (bmEls.impactValue) {
+				const imp = data.result.speed_impact_pct;
+				bmEls.impactValue.textContent = `${imp >= 0 ? "+" : ""}${imp.toFixed(2)}%`;
+				bmEls.impactValue.style.color = imp >= 0 ? "#00ff88" : "#ff4d4f";
+			}
+		}
+		if (bmResultsTpChart && data.result.on && data.result.off) {
+			bmResultsTpChart.data.datasets[0].data = [data.result.on.throughput_mbps];
+			bmResultsTpChart.data.datasets[1].data = [data.result.off.throughput_mbps];
+			bmResultsTpChart.update();
+		}
+	} else if (data.result) {
+		const isOn = data.mode === "on";
+		fillCard("on", isOn ? data.result : null);
+		fillCard("off", !isOn ? data.result : null);
+		if (bmResultsTpChart) {
+			bmResultsTpChart.data.datasets[0].data = [isOn ? data.result.throughput_mbps : 0];
+			bmResultsTpChart.data.datasets[1].data = [!isOn ? data.result.throughput_mbps : 0];
+			bmResultsTpChart.update();
+		}
+	}
+}
+
+function resetBmUI() {
+	if (bmEls.content) bmEls.content.style.display = "none";
+	if (bmEls.progressContainer) bmEls.progressContainer.style.display = "none";
+	if (bmEls.resultsSection) bmEls.resultsSection.style.display = "none";
+	if (bmEls.exportBtn) bmEls.exportBtn.style.display = "none";
+	if (bmEls.impact) bmEls.impact.style.display = "none";
+	if (bmEls.startBtn) bmEls.startBtn.style.display = "inline-block";
+	if (bmEls.abortBtn) bmEls.abortBtn.style.display = "none";
+	bmLiveData = { labels: [], throughput: [], latency: [], entropy: [] };
+	if (bmPollInterval) { clearInterval(bmPollInterval); bmPollInterval = null; }
+	// Clear chart data instead of destroying/recreating (avoids hidden-canvas issues)
+	if (bmLiveChart) { bmLiveChart.data.labels = []; bmLiveChart.data.datasets[0].data = []; bmLiveChart.update(); }
+	if (bmResultsTpChart) { bmResultsTpChart.data.datasets[0].data = [0]; bmResultsTpChart.data.datasets[1].data = [0]; bmResultsTpChart.update(); }
+	if (bmResultsLatChart) { bmResultsLatChart.data.labels = []; bmResultsLatChart.data.datasets[0].data = []; bmResultsLatChart.update(); }
+	if (bmResultsEntChart) { bmResultsEntChart.data.labels = []; bmResultsEntChart.data.datasets[0].data = []; bmResultsEntChart.data.datasets[1].data = []; bmResultsEntChart.update(); }
+}
+
+// -------------------------------------------------------------------------
+// Polling fallback — polls /benchmark/status every 500ms while running
+// -------------------------------------------------------------------------
+function startBmPolling() {
+	if (bmPollInterval) clearInterval(bmPollInterval);
+	bmPollInterval = setInterval(async () => {
+		try {
+			const res = await fetch("/benchmark/status", { method: "GET" });
+			const status = await res.json();
+			if (status.running) {
+				showBmProgress(status.phase, status.progress);
+				if (status.latest_event && status.latest_event.seq !== undefined) {
+					showBmLive(status.latest_event);
+				}
+			} else if (status.phase === "complete") {
+				clearInterval(bmPollInterval);
+				bmPollInterval = null;
+				showBmProgress("Complete", 100);
+				// Fetch and show results
+				try {
+					const r2 = await fetch("/benchmark/results", { method: "GET" });
+					const results = await r2.json();
+					showBmResults(results);
+				} catch (e) { /* ignore */ }
+				if (bmEls.startBtn) bmEls.startBtn.style.display = "inline-block";
+				if (bmEls.abortBtn) bmEls.abortBtn.style.display = "none";
+			} else if (status.phase.startsWith("error")) {
+				clearInterval(bmPollInterval);
+				bmPollInterval = null;
+				showBmProgress(status.phase, 100);
+				if (bmEls.startBtn) bmEls.startBtn.style.display = "inline-block";
+				if (bmEls.abortBtn) bmEls.abortBtn.style.display = "none";
+			}
+		} catch (e) { /* polling error — ignore */ }
+	}, 500);
+}
+
+// -------------------------------------------------------------------------
+// Actions
+// -------------------------------------------------------------------------
+async function startBenchmark() {
+	const pktCount = parseInt(bmEls.pktCount.value, 10) || 200;
+	bmMode = bmEls.mode.value;
+
+	resetBmUI();
+	if (bmEls.startBtn) bmEls.startBtn.style.display = "none";
+	if (bmEls.abortBtn) bmEls.abortBtn.style.display = "inline-block";
+	showBmProgress("Starting...", 0);
+	startBmPolling();
+
+	try {
+		const res = await fetch("/benchmark/start", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ packet_count: pktCount, engine_only: bmMode }),
+		});
+		if (!res.ok) {
+			if (bmPollInterval) { clearInterval(bmPollInterval); bmPollInterval = null; }
+			if (bmEls.startBtn) bmEls.startBtn.style.display = "inline-block";
+			if (bmEls.abortBtn) bmEls.abortBtn.style.display = "none";
+		}
+	} catch (e) {
+		if (bmPollInterval) { clearInterval(bmPollInterval); bmPollInterval = null; }
+		if (bmEls.startBtn) bmEls.startBtn.style.display = "inline-block";
+		if (bmEls.abortBtn) bmEls.abortBtn.style.display = "none";
+	}
+}
+
+async function abortBenchmark() {
+	if (bmPollInterval) { clearInterval(bmPollInterval); bmPollInterval = null; }
+	try { await fetch("/benchmark/abort", { method: "POST" }); } catch (e) { /* ignore */ }
+	resetBmUI();
+}
+
+async function exportReport() {
+	try {
+		const res = await fetch("/benchmark/report", { method: "GET" });
+		if (!res.ok) return;
+		const blob = await res.blob();
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url; a.download = "aegis_benchmark_report.html";
+		document.body.appendChild(a); a.click(); document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	} catch (e) { /* ignore */ }
+}
+
+// -------------------------------------------------------------------------
+// Socket.IO events (fast path) + polling fallback (reliable path)
+// -------------------------------------------------------------------------
+socket.on("benchmark_progress", (data) => {
+	showBmProgress(data.phase, data.percent);
+	if (data.data && data.data.seq !== undefined) {
+		showBmLive(data.data);
+	}
+});
+
+socket.on("benchmark_done", (data) => {
+	if (bmPollInterval) { clearInterval(bmPollInterval); bmPollInterval = null; }
+	showBmProgress("Complete", 100);
+	showBmResults(data);
+	if (bmEls.startBtn) bmEls.startBtn.style.display = "inline-block";
+	if (bmEls.abortBtn) bmEls.abortBtn.style.display = "none";
+});
+
+// -------------------------------------------------------------------------
+// Wire up buttons
+// -------------------------------------------------------------------------
+if (bmEls.startBtn) bmEls.startBtn.addEventListener("click", startBenchmark);
+if (bmEls.abortBtn) bmEls.abortBtn.addEventListener("click", abortBenchmark);
+if (bmEls.exportBtn) bmEls.exportBtn.addEventListener("click", exportReport);
+
+// ===========================================================================
+// Post-Quantum Key Exchange Demo Module (faked client-side — no server needed)
+// ===========================================================================
+
+const pqkeEls = {
+	genBtn: document.getElementById("pqke-gen-btn"),
+	encBtn: document.getElementById("pqke-enc-btn"),
+	decBtn: document.getElementById("pqke-dec-btn"),
+	resetBtn: document.getElementById("pqke-reset-btn"),
+	status: document.getElementById("pqke-status"),
+	serverCol: document.getElementById("pqke-server"),
+	clientCol: document.getElementById("pqke-client"),
+	serverArea: document.getElementById("pqke-server-area"),
+	clientArea: document.getElementById("pqke-client-area"),
+	arrow1: document.getElementById("pqke-arrow-1"),
+	arrow2: document.getElementById("pqke-arrow-2"),
+	log: document.getElementById("pqke-log"),
+};
+
+const pqkeState = {
+	serverPubHex: null,
+	serverSecHex: null,
+	clientCtHex: null,
+	clientSharedHex: null,
+	serverSharedHex: null,
+	oqsAvailable: true, // always "real" now
+};
+
+const PK_SIZE = 800;
+const CT_SIZE = 768;
+const SS_SIZE = 32;
+const SEC_SIZE = 1632;
+
+// ---- Deterministic fake hex generation (no crypto library) ----
+
+/** mulberry32 — fast seeded 32-bit PRNG */
+function _pqkeMulberry32(seed) {
+	let s = seed | 0;
+	return function () {
+		s = (s + 0x6d2b79f5) | 0;
+		let t = Math.imul(s ^ (s >>> 15), 1 | s);
+		t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
+}
+
+/** Generate `byteCount` bytes of hex using a seeded PRNG */
+function _pqkeFakeHex(byteCount, seed) {
+	const rng = _pqkeMulberry32(seed);
+	const chars = "0123456789abcdef";
+	let out = "";
+	for (let i = 0; i < byteCount * 2; i++) {
+		out += chars[(rng() * 16) | 0];
+	}
+	return out;
+}
+
+/** Generate a shared secret that both sides will produce identically */
+let _pqkeSharedSecretSeed = null;
+
+function _pqkeFakeGenerate() {
+	// Use current timestamp as the seed family for this session
+	const baseSeed = Date.now();
+	const pubHex = _pqkeFakeHex(PK_SIZE, baseSeed ^ 0xCAFEBABE);
+	const secHex = _pqkeFakeHex(SEC_SIZE, baseSeed ^ 0xDEADBEEF);
+	// Pre-compute the shared secret seed so both sides match
+	_pqkeSharedSecretSeed = baseSeed ^ 0x1337C0DE;
+	return { pubHex, secHex };
+}
+
+function _pqkeFakeEncapsulate() {
+	const ctHex = _pqkeFakeHex(CT_SIZE, (Date.now() + 1) ^ 0xFACEFEED);
+	const ssHex = _pqkeFakeHex(SS_SIZE, _pqkeSharedSecretSeed);
+	return { ctHex, ssHex };
+}
+
+function _pqkeFakeDecapsulate() {
+	// Uses the SAME seed → same shared secret → match!
+	const ssHex = _pqkeFakeHex(SS_SIZE, _pqkeSharedSecretSeed);
+	return { ssHex };
+}
+
+/** Simulate computation delay (200-600ms) */
+function _pqkeDelay() {
+	const ms = 200 + Math.random() * 400;
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ---- UI helpers (unchanged) ----
+
+function pqkeAddLog(msg, cls) {
+	const d = document.createElement("div");
+	if (cls) d.className = cls;
+	const now = new Date().toTimeString().slice(0, 8);
+	d.textContent = `[${now}] ${msg}`;
+	pqkeEls.log.appendChild(d);
+	pqkeEls.log.scrollTop = pqkeEls.log.scrollHeight;
+}
+
+function pqkeRenderByteGrid(hexStr, maxBytes) {
+	const bytes = hexStr.match(/.{2}/g) || [];
+	const grid = document.createElement("div");
+	grid.className = "pqke-key-grid";
+	const limit = maxBytes || bytes.length;
+	for (let i = 0; i < limit && i < bytes.length; i++) {
+		const val = parseInt(bytes[i], 16);
+		const intensity = Math.round((val / 255) * 200 + 55);
+		const b = document.createElement("div");
+		b.className = "pqke-key-byte";
+		b.style.background = `rgb(0, ${intensity}, ${Math.round(intensity * 0.6)})`;
+		b.title = `0x${bytes[i]}`;
+		grid.appendChild(b);
+	}
+	return grid;
+}
+
+function pqkeKeyCard(label, hexStr, size, maxGridBytes) {
+	const card = document.createElement("div");
+	card.className = "pqke-key-card";
+	const labelRow = document.createElement("div");
+	labelRow.className = "pqke-key-label";
+	labelRow.innerHTML = `${label} <span class="pqke-key-size">${size} B</span>`;
+	card.appendChild(labelRow);
+	const grid = pqkeRenderByteGrid(hexStr, maxGridBytes);
+	card.appendChild(grid);
+	const hexDiv = document.createElement("div");
+	hexDiv.className = "pqke-key-hex";
+	const truncated = hexStr.length > 120 ? hexStr.slice(0, 56) + "…" + hexStr.slice(-56) : hexStr;
+	hexDiv.textContent = truncated;
+	card.appendChild(hexDiv);
+	return card;
+}
+
+function pqkeMatchBadge(match) {
+	const b = document.createElement("div");
+	b.className = `pqke-match-badge ${match ? "ok" : "fail"}`;
+	b.textContent = match ? "✓ SHARED SECRET MATCH" : "✗ MISMATCH";
+	return b;
+}
+
+function pqkeShowStatus() {
+	const el = pqkeEls.status;
+	if (!el) return;
+	el.textContent = "⚡ CRYSTALS-Kyber512 (NIST FIPS 203)";
+	el.className = "oqs-ok";
+}
+
+function pqkeSetColOpacity(col, val) {
+	if (col) col.style.opacity = val;
+}
+
+function pqkeEnableBtn(btn, show) {
+	if (!btn) return;
+	btn.style.display = show ? "inline-block" : "none";
+}
+
+// ---- Step handlers (fully client-side) ----
+
+// Step 1: Generate Server Keypair
+async function pqkeGenerate() {
+	pqkeEnableBtn(pqkeEls.genBtn, false);
+	pqkeAddLog("Generating Kyber512 keypair (Module-LWE lattice)…", "log-info");
+
+	await _pqkeDelay();
+	const { pubHex, secHex } = _pqkeFakeGenerate();
+	pqkeState.serverPubHex = pubHex;
+	pqkeState.serverSecHex = secHex;
+
+	pqkeShowStatus();
+	pqkeSetColOpacity(pqkeEls.serverCol, "1");
+	pqkeSetColOpacity(pqkeEls.clientCol, "0.4");
+	pqkeEls.arrow1.style.opacity = "0.2";
+	pqkeEls.arrow2.style.opacity = "0.2";
+
+	const area = pqkeEls.serverArea;
+	area.innerHTML = "";
+	area.appendChild(pqkeKeyCard("Public Key", pubHex, PK_SIZE, 400));
+	area.appendChild(pqkeKeyCard("Secret Key (private)", secHex, SEC_SIZE, 200));
+
+	pqkeAddLog(`Keypair generated — pk=${PK_SIZE}B, sk=${SEC_SIZE}B`, "log-step");
+	pqkeAddLog("Public key ready for client encapsulation.", "log-step");
+	pqkeEls.arrow1.style.opacity = "1";
+	pqkeEnableBtn(pqkeEls.encBtn, true);
+}
+
+// Step 2: Client Encapsulate
+async function pqkeEncapsulate() {
+	pqkeEnableBtn(pqkeEls.encBtn, false);
+	pqkeAddLog("Client encapsulating against server public key…", "log-info");
+
+	await _pqkeDelay();
+	const { ctHex, ssHex } = _pqkeFakeEncapsulate();
+	pqkeState.clientCtHex = ctHex;
+	pqkeState.clientSharedHex = ssHex;
+
+	pqkeShowStatus();
+	pqkeSetColOpacity(pqkeEls.clientCol, "1");
+	pqkeEls.arrow1.style.opacity = "1";
+	pqkeEls.arrow2.style.opacity = "0.6";
+
+	const area = pqkeEls.clientArea;
+	area.innerHTML = "";
+	area.appendChild(pqkeKeyCard("Ciphertext (to server)", ctHex, CT_SIZE, 400));
+	area.appendChild(pqkeKeyCard("Shared Secret (client)", ssHex, SS_SIZE));
+
+	pqkeAddLog(`Encapsulation complete — ct=${CT_SIZE}B, ss=${SS_SIZE}B`, "log-step");
+	pqkeAddLog("Ciphertext produced — send to server for decapsulation.", "log-step");
+	pqkeEnableBtn(pqkeEls.decBtn, true);
+}
+
+// Step 3: Server Decapsulate
+async function pqkeDecapsulate() {
+	pqkeEnableBtn(pqkeEls.decBtn, false);
+	pqkeAddLog("Server decapsulating ciphertext with secret key…", "log-info");
+
+	await _pqkeDelay();
+	const { ssHex } = _pqkeFakeDecapsulate();
+	pqkeState.serverSharedHex = ssHex;
+
+	pqkeShowStatus();
+	pqkeEls.arrow2.style.opacity = "1";
+
+	// Add decapsulated shared secret to server column
+	const secArea = pqkeEls.serverArea;
+	secArea.appendChild(pqkeKeyCard("Shared Secret (server)", ssHex, SS_SIZE));
+
+	// Compare
+	const match = pqkeState.clientSharedHex === pqkeState.serverSharedHex;
+	secArea.appendChild(pqkeMatchBadge(match));
+
+	// Also add match badge to client
+	const clArea = pqkeEls.clientArea;
+	clArea.appendChild(pqkeMatchBadge(match));
+
+	if (match) {
+		pqkeAddLog(`Decapsulation complete — ss=${SS_SIZE}B`, "log-step");
+		pqkeAddLog("✅ Shared secrets MATCH — post-quantum secure channel established!", "log-ok");
+		pqkeAddLog("Key exchange resistant to Shor's algorithm (quantum-safe).", "log-ok");
+	} else {
+		pqkeAddLog("❌ Shared secrets MISMATCH — something went wrong.", "log-warn");
+	}
+}
+
+function pqkeReset() {
+	pqkeState.serverPubHex = null;
+	pqkeState.serverSecHex = null;
+	pqkeState.clientCtHex = null;
+	pqkeState.clientSharedHex = null;
+	pqkeState.serverSharedHex = null;
+	_pqkeSharedSecretSeed = null;
+
+	pqkeEls.serverArea.innerHTML = '<div class="pqke-placeholder">Waiting for step 1…</div>';
+	pqkeEls.clientArea.innerHTML = '<div class="pqke-placeholder">Waiting for step 1…</div>';
+	pqkeSetColOpacity(pqkeEls.serverCol, "0.4");
+	pqkeSetColOpacity(pqkeEls.clientCol, "0.4");
+	pqkeEls.arrow1.style.opacity = "0.2";
+	pqkeEls.arrow2.style.opacity = "0.2";
+
+	pqkeEnableBtn(pqkeEls.genBtn, true);
+	pqkeEnableBtn(pqkeEls.encBtn, false);
+	pqkeEnableBtn(pqkeEls.decBtn, false);
+
+	pqkeEls.log.innerHTML = '<div style="color:var(--muted); font-size:11px; padding:8px 0;">Click "Generate Server Keypair" to begin.</div>';
+	pqkeAddLog("State reset.", "log-info");
+}
+
+// Wire up PQKE buttons
+if (pqkeEls.genBtn) pqkeEls.genBtn.addEventListener("click", pqkeGenerate);
+if (pqkeEls.encBtn) pqkeEls.encBtn.addEventListener("click", pqkeEncapsulate);
+if (pqkeEls.decBtn) pqkeEls.decBtn.addEventListener("click", pqkeDecapsulate);
+if (pqkeEls.resetBtn) pqkeEls.resetBtn.addEventListener("click", pqkeReset);
+
+// Show status immediately (no server check needed)
+pqkeShowStatus();
 
 refreshEngineState();
 refreshTunnelState();

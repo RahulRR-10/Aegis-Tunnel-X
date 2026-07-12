@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Aegis-Tunnel X — Benchmark Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#0a0e0c; color:#b6ffe0; font-family:'JetBrains Mono','Consolas',monospace;
+  padding:30px; max-width:1100px; margin:auto;
+}
+h1 { color:#00ff88; font-size:20px; letter-spacing:3px; text-transform:uppercase; margin-bottom:4px; }
+h2 { color:#b6ffe0; font-size:14px; letter-spacing:2px; text-transform:uppercase; margin:24px 0 12px;
+      border-bottom:1px solid rgba(0,255,136,0.15); padding-bottom:6px; }
+.subtitle { color:#5ea882; font-size:10px; margin-bottom:20px; letter-spacing:1.5px; }
+.summary-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;
+}
+.summary-card {
+  background:rgba(0,255,136,0.04); border:1px solid rgba(0,255,136,0.15); border-radius:8px;
+  padding:16px; border-left:3px solid #00ff88;
+}
+.summary-card.danger { border-left-color:#ff4d4f; }
+.summary-card.warn { border-left-color:#ff9f1a; }
+.card-label { font-size:9px; color:#5ea882; letter-spacing:1.8px; text-transform:uppercase; }
+.card-value { font-size:28px; font-weight:700; color:#00ff88; margin:4px 0; }
+.card-value.danger { color:#ff4d4f; }
+.card-value.warn { color:#ff9f1a; }
+.card-sub { font-size:10px; color:#5ea882; }
+.chart-container { background:rgba(0,255,136,0.02); border:1px solid rgba(0,255,136,0.1); border-radius:8px; padding:14px; margin-bottom:16px; }
+.chart-container canvas { height:220px !important; }
+.comparison-row {
+  display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;
+}
+.comp-card {
+  border-radius:8px; padding:14px; border:1px solid rgba(0,255,136,0.12);
+}
+.comp-card.on { background:rgba(0,255,136,0.06); }
+.comp-card.off { background:rgba(255,77,79,0.06); border-color:rgba(255,77,79,0.2); }
+.comp-header { font-size:10px; letter-spacing:2px; text-transform:uppercase; margin-bottom:8px; }
+.comp-stat { display:flex; justify-content:space-between; padding:4px 0; font-size:11px; }
+.comp-stat .label { color:#5ea882; }
+.comp-stat .value { color:#b6ffe0; font-weight:600; }
+.score-meter {
+  width:100%; height:12px; background:rgba(0,255,136,0.08); border-radius:6px; overflow:hidden; margin:8px 0;
+}
+.score-fill { height:100%; border-radius:6px; transition:width 0.5s ease; }
+.score-fill.safe { background:linear-gradient(90deg,#00ff88,#00cc6a); }
+.score-fill.warn { background:linear-gradient(90deg,#ff9f1a,#ffb84d); }
+.score-fill.danger { background:linear-gradient(90deg,#ff4d4f,#ff7875); }
+.footer { margin-top:30px; padding-top:16px; border-top:1px solid rgba(0,255,136,0.1); font-size:9px; color:#5ea882; text-align:center; letter-spacing:1px; }
+table { width:100%; border-collapse:collapse; font-size:11px; }
+td, th { padding:6px 10px; border-bottom:1px solid rgba(0,255,136,0.06); text-align:left; }
+th { color:#5ea882; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; }
+td { color:#b6ffe0; }
+.tag {
+  display:inline-block; padding:2px 8px; border-radius:3px; font-size:9px; font-weight:700; letter-spacing:1px;
+}
+.tag.evaded { background:rgba(0,255,136,0.12); color:#00ff88; border:1px solid #00ff88; }
+.tag.detected { background:rgba(255,77,79,0.12); color:#ff4d4f; border:1px solid #ff4d4f; }
+.tag.moderate { background:rgba(255,159,26,0.12); color:#ff9f1a; border:1px solid #ff9f1a; }
+</style>
+</head>
+<body>
+
+<h1>⏱ AEGIS-TUNNEL X — BENCHMARK REPORT</h1>
+<div class="subtitle">Generated 2026-06-11 23:42:18 • 20 packets • Morphic Engine ON</div>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <div class="card-label">Throughput</div>
+    <div class="card-value">0.21 Mbps</div>
+    <div class="card-sub">with Morphic Engine</div>
+  </div>
+  <div class="summary-card warn">
+    <div class="card-label">DPI Evasion Status</div>
+    <div class="card-value warn">MODERATE</div>
+    <div class="card-sub">Score: 0.460</div>
+  </div>
+  <div class="summary-card">
+    <div class="card-label">Avg Latency</div>
+    <div class="card-value">30.6 ms</div>
+    <div class="card-sub">P95: 43.9 ms • Jitter: 11.0 ms</div>
+  </div>
+  <div class="summary-card">
+    <div class="card-label">Entropy Reduction</div>
+    <div class="card-value">6.5%</div>
+    <div class="card-sub">7.3499 → 6.8733 (raw → morphed)</div>
+  </div>
+</div>
+
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <div class="card-label">Total Data Sent</div>
+    <div class="card-value">15.4 KB</div>
+    <div class="card-sub">20 packets</div>
+  </div>
+  <div class="summary-card warn">
+    <div class="card-label">Overhead (Padding)</div>
+    <div class="card-value warn">15.93%</div>
+    <div class="card-sub">2.1 KB total padding</div>
+  </div>
+</div>
+
+<h2>Engine Comparison: ON vs OFF</h2>
+<div class="comparison-row">
+  <div class="comp-card on">
+    <div class="comp-header" style="color:#00ff88;">🟢 Morphic Engine ON</div>
+    <div class="comp-stat"><span class="label">Throughput</span><span class="value">0.206 Mbps</span></div>
+    <div class="comp-stat"><span class="label">Avg Latency</span><span class="value">30.6 ms</span></div>
+    <div class="comp-stat"><span class="label">Avg Entropy</span><span class="value">6.8733</span></div>
+    <div class="comp-stat"><span class="label">DPI Status</span><span class="value">MODERATE</span></div>
+  </div>
+  <div class="comp-card off">
+    <div class="comp-header" style="color:#ff4d4f;">🔴 Morphic Engine OFF</div>
+    <div class="comp-stat"><span class="label">Throughput</span><span class="value">11.717 Mbps</span></div>
+    <div class="comp-stat"><span class="label">Avg Latency</span><span class="value">0.5 ms</span></div>
+    <div class="comp-stat"><span class="label">Avg Entropy</span><span class="value">7.3501</span></div>
+    <div class="comp-stat"><span class="label">DPI Status</span><span class="value">DETECTED</span></div>
+  </div>
+</div>
+
+
+<div style="background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.15);border-radius:8px;padding:14px;margin-bottom:16px;">
+  <div style="font-size:10px;color:#5ea882;letter-spacing:1.5px;text-transform:uppercase;">Speed Impact</div>
+  <div style="font-size:22px;font-weight:700;color:#00ff88;">-98.24%</div>
+  <div style="font-size:10px;color:#5ea882;">Throughput change with engine ON vs OFF</div>
+</div>
+
+<div class="chart-container">
+  <h2>Throughput Comparison</h2>
+  <canvas id="throughputChart"></canvas>
+</div>
+
+<div class="chart-container">
+  <h2>Latency Distribution</h2>
+  <canvas id="latencyChart"></canvas>
+</div>
+
+<div class="chart-container">
+  <h2>Entropy Over Time</h2>
+  <canvas id="entropyChart"></canvas>
+</div>
+
+<h2>Per-Packet Details (first 50 samples)</h2>
+<div style="max-height:300px; overflow-y:auto; border:1px solid rgba(0,255,136,0.08); border-radius:6px;">
+<table>
+<tr><th>#</th><th>Size (B)</th><th>Padding</th><th>Entropy</th><th>Latency (ms)</th><th>Sent</th></tr>
+<tr><td>0</td><td>165</td><td>+71B</td><td>5.3468</td><td>35.733</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>1</td><td>371</td><td>+85B</td><td>6.7081</td><td>11.577</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>2</td><td>678</td><td>+136B</td><td>7.1106</td><td>28.958</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>3</td><td>1125</td><td>+71B</td><td>7.7288</td><td>27.534</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>4</td><td>1516</td><td>+86B</td><td>7.8011</td><td>39.749</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>5</td><td>199</td><td>+105B</td><td>4.9142</td><td>31.371</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>6</td><td>430</td><td>+144B</td><td>6.3664</td><td>41.216</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>7</td><td>677</td><td>+135B</td><td>7.1748</td><td>23.728</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>8</td><td>1151</td><td>+97B</td><td>7.7112</td><td>20.885</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>9</td><td>1515</td><td>+85B</td><td>7.8173</td><td>16.706</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>10</td><td>165</td><td>+71B</td><td>5.3176</td><td>43.564</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>11</td><td>390</td><td>+104B</td><td>6.6353</td><td>36.205</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>12</td><td>617</td><td>+75B</td><td>7.3803</td><td>31.538</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>13</td><td>1187</td><td>+133B</td><td>7.5962</td><td>25.627</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>14</td><td>1561</td><td>+131B</td><td>7.727</td><td>32.925</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>15</td><td>206</td><td>+112B</td><td>4.7938</td><td>42.741</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>16</td><td>358</td><td>+72B</td><td>6.9051</td><td>49.894</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>17</td><td>690</td><td>+148B</td><td>7.0887</td><td>12.923</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>18</td><td>1212</td><td>+158B</td><td>7.564</td><td>41.878</td><td style='color:#00ff88'>✓</td></tr>
+<tr><td>19</td><td>1535</td><td>+105B</td><td>7.7788</td><td>16.807</td><td style='color:#00ff88'>✓</td></tr>
+
+</table>
+</div>
+
+<div class="footer">
+  Aegis-Tunnel X — Post-Quantum VPN Tunnel • AES-256-GCM • CRYSTALS-Kyber512 • Morphic Engine
+</div>
+
+<script>
+const throughputData = {"labels": ["Throughput (Mbps)"], "on_values": [0.21], "off_values": [11.72]};
+const latencyData = {"labels": ["0.0", "3.3", "6.7", "10.0", "13.3", "16.6", "20.0", "23.3", "26.6", "29.9", "33.3", "36.6", "39.9", "43.2", "46.6"], "values": [20, 0, 0, 2, 0, 2, 1, 2, 2, 3, 2, 1, 3, 1, 1]};
+const entropyData = {"labels": ["#0", "#0", "#1", "#1", "#2", "#2", "#3", "#3", "#4", "#4", "#5", "#5", "#6", "#6", "#7", "#7", "#8", "#8", "#9", "#9", "#10", "#10", "#11", "#11", "#12", "#12", "#13", "#13", "#14", "#14", "#15", "#15", "#16", "#16", "#17", "#17", "#18", "#18", "#19", "#19"], "raw_values": [6.241, 6.2762, 7.1958, 7.2841, 7.6207, 7.6142, 7.8131, 7.8192, 7.8634, 7.8653, 6.1729, 6.1893, 7.2947, 7.19, 7.6387, 7.6816, 7.8285, 7.8173, 7.8825, 7.8805, 6.1893, 6.0072, 7.267, 7.2318, 7.6026, 7.5767, 7.7894, 7.8374, 7.8602, 7.8759, 6.1294, 6.2844, 7.2978, 7.23, 7.6232, 7.6676, 7.8192, 7.8132, 7.8684, 7.8599], "final_values": [5.3468, 6.2762, 6.7081, 7.2841, 7.1106, 7.6142, 7.7288, 7.8192, 7.8011, 7.8653, 4.9142, 6.1893, 6.3664, 7.19, 7.1748, 7.6816, 7.7112, 7.8173, 7.8173, 7.8805, 5.3176, 6.0072, 6.6353, 7.2318, 7.3803, 7.5767, 7.5962, 7.8374, 7.727, 7.8759, 4.7938, 6.2844, 6.9051, 7.23, 7.0887, 7.6676, 7.564, 7.8132, 7.7788, 7.8599]};
+
+new Chart(document.getElementById('throughputChart'), {
+  type: 'bar', data: {
+    labels: throughputData.labels,
+    datasets: [
+      { label: 'Engine ON', data: throughputData.on_values, backgroundColor: 'rgba(0,255,136,0.6)', borderColor: '#00ff88', borderWidth: 1 },
+      { label: 'Engine OFF', data: throughputData.off_values, backgroundColor: 'rgba(255,77,79,0.6)', borderColor: '#ff4d4f', borderWidth: 1 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#b6ffe0', font: { family: 'JetBrains Mono', size: 10 } } } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(0,255,136,0.1)' }, ticks: { color: '#5ea882', font: { family: 'JetBrains Mono', size: 10 } } },
+      x: { grid: { display: false }, ticks: { color: '#5ea882', font: { family: 'JetBrains Mono', size: 9 } } }
+    }
+  }
+});
+
+new Chart(document.getElementById('latencyChart'), {
+  type: 'bar', data: {
+    labels: latencyData.labels,
+    datasets: [{
+      label: 'Count',
+      data: latencyData.values,
+      backgroundColor: 'rgba(0,255,136,0.4)',
+      borderColor: '#00ff88',
+      borderWidth: 1
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(0,255,136,0.1)' }, ticks: { color: '#5ea882', font: { family: 'JetBrains Mono', size: 10 } } },
+      x: { grid: { display: false }, ticks: { color: '#5ea882', font: { family: 'JetBrains Mono', size: 9 }, maxRotation: 45 } }
+    }
+  }
+});
+
+new Chart(document.getElementById('entropyChart'), {
+  type: 'line', data: {
+    labels: entropyData.labels,
+    datasets: [
+      { label: 'Raw Entropy', data: entropyData.raw_values, borderColor: '#ff9f1a', backgroundColor: 'rgba(255,159,26,0.1)', borderWidth: 1.5, tension: 0.3, pointRadius: 0, fill: true },
+      { label: 'Final Entropy', data: entropyData.final_values, borderColor: '#00ff88', backgroundColor: 'rgba(0,255,136,0.1)', borderWidth: 1.5, tension: 0.3, pointRadius: 0, fill: true }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#b6ffe0', font: { family: 'JetBrains Mono', size: 10 } } }
+    },
+    scales: {
+      y: { min: 3, max: 8.2, grid: { color: 'rgba(0,255,136,0.1)' }, ticks: { color: '#5ea882', font: { family: 'JetBrains Mono', size: 10 } } },
+      x: { display: false }
+    }
+  }
+});
+</script>
+</body>
+</html>

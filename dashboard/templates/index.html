@@ -338,7 +338,11 @@
       border-bottom: 1px solid rgba(0, 255, 136, 0.12);
     }
 
-    canvas { flex: 1; min-height: 0; }
+    canvas { flex: 1; min-height: 0; max-width: 100%; }
+    .panel canvas { width: 100% !important; max-width: 100%; }
+    #bm-content { max-width: 100%; overflow-x: hidden; }
+    #bm-content .panel { overflow: hidden; }
+    #bm-live-section, #bm-results-section { width: 100%; }
 
     /* ------------------------------------------------------------------ */
     /* Educational Info Card                                               */
@@ -668,6 +672,54 @@
     #crypto-send-btn:hover {
       background: rgba(0, 255, 136, 0.12) !important;
     }
+
+    /* ================================================================== */
+    /* Post-Quantum Key Exchange Demo                                      */
+    /* ================================================================== */
+    .pqke-compare {
+      display: flex; align-items: center; gap: 16px;
+      background: rgba(0,255,136,0.03); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 18px; flex-shrink: 0;
+    }
+    .pqke-compare-col { flex:1; }
+    .pqke-compare-title { font-size:11px; font-weight:700; letter-spacing:1.5px; margin-bottom:6px; }
+    .pqke-compare-row { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); padding:3px 0; letter-spacing:0.8px; }
+    .pqke-compare-vs { font-size:10px; color:var(--muted); font-weight:700; letter-spacing:2px; flex-shrink:0; }
+    .badge-pass { color:#00ff88; font-weight:700; }
+    .badge-fail { color:#ff4d4f; font-weight:700; }
+
+    .pqke-flow { display:flex; gap:16px; flex:1; min-height:0; align-items:stretch; }
+    .pqke-col { flex:1; display:flex; flex-direction:column; gap:8px; min-height:0; transition:opacity 0.4s; overflow-y:auto; padding-right:4px; }
+    .pqke-col-header { font-size:12px; font-weight:700; letter-spacing:2px; color:var(--text-hi); text-transform:uppercase; flex-shrink:0; }
+    .pqke-placeholder { color:var(--muted); font-size:11px; padding:20px 0; text-align:center; }
+
+    .pqke-arrow-wrap { display:flex; flex-direction:column; justify-content:center; align-items:center; gap:20px; flex-shrink:0; width:32px; }
+    .pqke-arrow { font-size:22px; color:var(--accent); transition:opacity 0.5s; }
+
+    .pqke-key-card {
+      background:rgba(0,255,136,0.04); border:1px solid var(--border); border-radius:6px; padding:10px 12px; flex-shrink:0;
+    }
+    .pqke-key-label { font-size:9px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px; display:flex; justify-content:space-between; }
+    .pqke-key-size { color:var(--muted); font-weight:400; }
+    .pqke-key-hex { font-size:9px; color:var(--accent); word-break:break-all; line-height:1.5; max-height:60px; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:3px; padding:4px 6px; margin-top:3px; font-family:'JetBrains Mono',monospace; }
+    .pqke-key-grid { display:flex; flex-wrap:wrap; gap:1px; margin-top:4px; }
+    .pqke-key-byte { width:6px; height:6px; border-radius:1px; flex-shrink:0; }
+
+    .pqke-match-badge { display:inline-block; padding:3px 10px; border-radius:4px; font-size:11px; font-weight:700; letter-spacing:1px; margin-top:4px; }
+    .pqke-match-badge.ok { color:#00ff88; background:rgba(0,255,136,0.15); border:1px solid #00ff88; }
+    .pqke-match-badge.fail { color:#ff4d4f; background:rgba(255,77,79,0.15); border:1px solid #ff4d4f; }
+
+    .pqke-log-wrap { flex-shrink:0; border:1px solid var(--border); border-radius:8px; padding:12px 16px; background:rgba(0,255,136,0.02); }
+    .pqke-log-wrap .panel-title { margin-bottom:6px; }
+    #pqke-log { max-height:100px; overflow-y:auto; font-size:10.5px; line-height:1.7; color:#b6ffe0; }
+    #pqke-log div { padding:1px 0; }
+    #pqke-log .log-step { color:var(--accent); font-weight:600; }
+    #pqke-log .log-warn { color:var(--pad); }
+    #pqke-log .log-ok { color:#00ff88; }
+    #pqke-log .log-info { color:var(--muted); }
+
+    #pqke-status.oqs-ok { color:var(--accent); }
+    #pqke-status.oqs-miss { color:var(--pad); }
   </style>
 </head>
 <body>
@@ -701,6 +753,14 @@
       <a class="nav-item" data-page="chat" id="nav-chat">
         <span class="nav-icon">🔐</span>
         <span class="nav-label">Crypto Playground</span>
+      </a>
+      <a class="nav-item" data-page="pqke" id="nav-pqke">
+        <span class="nav-icon">🔑</span>
+        <span class="nav-label">PQ Key Exchange</span>
+      </a>
+      <a class="nav-item" data-page="benchmark" id="nav-benchmark">
+        <span class="nav-icon">⏱</span>
+        <span class="nav-label">Benchmark</span>
       </a>
     </div>
 
@@ -862,6 +922,210 @@
         <div id="crypto-pipeline" style="display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 0; padding-right: 4px; flex: 1;">
           <div style="text-align: center; color: var(--muted); font-size: 11px; padding: 60px 0; letter-spacing: 1px;">
             Type a message and press ANALYZE to see the encryption pipeline in action
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- PAGE 6: PQ KEY EXCHANGE DEMO                                  -->
+      <!-- ============================================================= -->
+      <section class="page" data-page="pqke" id="page-pqke">
+
+        <div class="info-card">
+          <strong>CRYSTALS-Kyber512</strong> is a NIST-standardized post-quantum
+          Key Encapsulation Mechanism (KEM). Unlike classic Diffie-Hellman (which
+          <span class="warn-t">Shor's algorithm breaks</span> on a quantum computer),
+          Kyber is built on <strong>Module-LWE</strong> (Learning With Errors) — a
+          lattice problem believed to be <strong>hard for quantum computers</strong>.
+          Follow the steps below to see a real Kyber key exchange.
+        </div>
+
+        <!-- PQ vs DH comparison card -->
+        <div class="pqke-compare">
+          <div class="pqke-compare-col">
+            <div class="pqke-compare-title" style="color:#ff4d4f;">Classic Diffie-Hellman</div>
+            <div class="pqke-compare-row"><span>Security</span><span class="badge-fail">Broken by Shor</span></div>
+            <div class="pqke-compare-row"><span>Key size</span><span>32 bytes</span></div>
+            <div class="pqke-compare-row"><span>Problem</span><span>Discrete Log</span></div>
+            <div class="pqke-compare-row"><span>Standard</span><span>RFC 2631</span></div>
+          </div>
+          <div class="pqke-compare-vs">vs</div>
+          <div class="pqke-compare-col">
+            <div class="pqke-compare-title" style="color:#00ff88;">CRYSTALS-Kyber512</div>
+            <div class="pqke-compare-row"><span>Security</span><span class="badge-pass">Quantum-safe</span></div>
+            <div class="pqke-compare-row"><span>Key size</span><span>800 bytes</span></div>
+            <div class="pqke-compare-row"><span>Problem</span><span>Module-LWE</span></div>
+            <div class="pqke-compare-row"><span>Standard</span><span>NIST FIPS 203</span></div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; flex-shrink:0;">
+          <button id="pqke-gen-btn" class="ctrl-btn" style="border-color:var(--accent); color:var(--accent);">
+            1. Generate Server Keypair
+          </button>
+          <button id="pqke-enc-btn" class="ctrl-btn" style="border-color:var(--pad); color:var(--pad); display:none;">
+            2. Client Encapsulate
+          </button>
+          <button id="pqke-dec-btn" class="ctrl-btn" style="border-color:var(--accent); color:var(--accent); display:none;">
+            3. Server Decapsulate
+          </button>
+          <button id="pqke-reset-btn" class="ctrl-btn" style="border-color:var(--muted); color:var(--muted); opacity:0.5;">
+            Reset
+          </button>
+          <span id="pqke-status" style="font-size:10px; color:var(--muted); letter-spacing:1px; margin-left:auto;"></span>
+        </div>
+
+        <!-- Two-column flow -->
+        <div class="pqke-flow">
+          <!-- Server Column -->
+          <div class="pqke-col" id="pqke-server" style="opacity:0.4;">
+            <div class="pqke-col-header">🖥 Server</div>
+            <div id="pqke-server-area">
+              <div class="pqke-placeholder">Waiting for step 1…</div>
+            </div>
+          </div>
+
+          <!-- Arrow -->
+          <div class="pqke-arrow-wrap">
+            <div class="pqke-arrow" id="pqke-arrow-1" style="opacity:0.2;">⟶</div>
+            <div class="pqke-arrow" id="pqke-arrow-2" style="opacity:0.2;">⟵</div>
+          </div>
+
+          <!-- Client Column -->
+          <div class="pqke-col" id="pqke-client" style="opacity:0.4;">
+            <div class="pqke-col-header">💻 Client</div>
+            <div id="pqke-client-area">
+              <div class="pqke-placeholder">Waiting for step 1…</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step log -->
+        <div class="pqke-log-wrap">
+          <div class="panel-title">Step Log</div>
+          <div id="pqke-log">
+            <div style="color:var(--muted); font-size:11px; padding:8px 0;">Click "Generate Server Keypair" to begin.</div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- PAGE 7: BENCHMARK                                             -->
+      <!-- ============================================================= -->
+      <section class="page" data-page="benchmark" id="page-benchmark">
+        <div class="info-card">
+          <strong>Throughput Benchmark</strong> measures the tunnel's real-world performance
+          by sending a burst of encrypted packets through the full pipeline.
+          Runs tests with the <strong>Morphic Engine ON vs OFF</strong> and compares
+          throughput, latency, jitter, and <strong>DPI evasion score</strong>.
+          Export a report card for presentations.
+        </div>
+
+        <!-- Control Panel -->
+        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; flex-shrink:0;">
+          <label style="font-size:10px; color:var(--muted); letter-spacing:1px;">
+            Packets:
+            <select id="bm-pkt-count" style="background:rgba(0,255,136,0.04); border:1px solid var(--border); border-radius:4px; color:var(--accent); font-family:'JetBrains Mono',monospace; font-size:11px; padding:4px 8px; margin-left:6px;">
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="200" selected>200</option>
+              <option value="500">500</option>
+            </select>
+          </label>
+          <label style="font-size:10px; color:var(--muted); letter-spacing:1px;">
+            Mode:
+            <select id="bm-mode" style="background:rgba(0,255,136,0.04); border:1px solid var(--border); border-radius:4px; color:var(--accent); font-family:'JetBrains Mono',monospace; font-size:11px; padding:4px 8px; margin-left:6px;">
+              <option value="comparison" selected>Engine ON vs OFF</option>
+              <option value="on">Engine ON only</option>
+              <option value="off">Engine OFF only</option>
+            </select>
+          </label>
+          <button id="bm-start-btn" class="ctrl-btn" style="border-color:var(--accent); color:var(--accent);">
+            ▶ START BENCHMARK
+          </button>
+          <button id="bm-abort-btn" class="ctrl-btn" style="border-color:var(--warn); color:var(--warn); display:none;">
+            ■ ABORT
+          </button>
+          <button id="bm-export-btn" class="ctrl-btn" style="border-color:var(--pad); color:var(--pad); display:none;">
+            📄 EXPORT REPORT
+          </button>
+        </div>
+
+        <!-- Progress Bar -->
+        <div id="bm-progress-container" style="display:none; flex-shrink:0;">
+          <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--muted); letter-spacing:1px; margin-bottom:4px;">
+            <span id="bm-phase-label">Initializing...</span>
+            <span id="bm-pct-label">0%</span>
+          </div>
+          <div style="width:100%; height:8px; background:rgba(0,255,136,0.08); border-radius:4px; overflow:hidden;">
+            <div id="bm-progress-bar" style="width:0%; height:100%; background:linear-gradient(90deg,#00ff88,#00cc6a); border-radius:4px; transition:width 0.3s ease;"></div>
+          </div>
+        </div>
+
+        <!-- Benchmark content area (shared: live + results, no layout shift) -->
+        <div id="bm-content" style="display:none; flex:1; min-height:0; flex-direction:column; gap:8px; overflow-y:auto;">
+
+          <!-- Live throughput mini chart (visible during run) -->
+          <div id="bm-live-section" style="flex-shrink:0;">
+            <div class="panel" style="height:180px; flex:none;">
+              <div class="panel-title">Live Throughput</div>
+              <canvas id="bm-live-chart"></canvas>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:8px;">
+              <div class="stat-card"><span class="stat-label">Current Throughput</span><span class="stat-value" id="bm-live-tp">—</span></div>
+              <div class="stat-card"><span class="stat-label">Avg Latency</span><span class="stat-value" id="bm-live-lat">—</span></div>
+              <div class="stat-card"><span class="stat-label">Avg Entropy</span><span class="stat-value" id="bm-live-ent">—</span></div>
+              <div class="stat-card"><span class="stat-label">Packets Sent</span><span class="stat-value" id="bm-live-pkts">0</span></div>
+            </div>
+          </div>
+
+          <!-- Results (shown after completion) -->
+          <div id="bm-results-section" style="display:none; min-height:0;">
+
+            <!-- Summary Comparison Cards -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+              <div id="bm-card-on" class="stat-card" style="border-left:3px solid #00ff88; background:rgba(0,255,136,0.04);">
+                <div style="font-size:10px; color:#00ff88; letter-spacing:2px; text-transform:uppercase; margin-bottom:6px;">🟢 Engine ON</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span class="stat-label">Throughput</span><span class="stat-value" style="font-size:16px;" id="bm-on-tp">—</span></div>
+                  <div><span class="stat-label">Avg Latency</span><span class="stat-value" style="font-size:16px;" id="bm-on-lat">—</span></div>
+                  <div><span class="stat-label">Final Entropy</span><span class="stat-value" style="font-size:16px;" id="bm-on-ent">—</span></div>
+                  <div><span class="stat-label">DPI Status</span><span class="stat-value" style="font-size:14px;" id="bm-on-dpi">—</span></div>
+                </div>
+              </div>
+              <div id="bm-card-off" class="stat-card" style="border-left:3px solid #ff4d4f; background:rgba(255,77,79,0.04);">
+                <div style="font-size:10px; color:#ff4d4f; letter-spacing:2px; text-transform:uppercase; margin-bottom:6px;">🔴 Engine OFF</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                  <div><span class="stat-label">Throughput</span><span class="stat-value" style="font-size:16px;" id="bm-off-tp">—</span></div>
+                  <div><span class="stat-label">Avg Latency</span><span class="stat-value" style="font-size:16px;" id="bm-off-lat">—</span></div>
+                  <div><span class="stat-label">Final Entropy</span><span class="stat-value" style="font-size:16px;" id="bm-off-ent">—</span></div>
+                  <div><span class="stat-label">DPI Status</span><span class="stat-value" style="font-size:14px;" id="bm-off-dpi">—</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Impact Highlight -->
+            <div id="bm-impact" style="background:rgba(0,255,136,0.04); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:8px; padding:14px; display:none; margin-bottom:10px;">
+              <div style="font-size:10px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase;">Speed Impact (Engine ON vs OFF)</div>
+              <div id="bm-impact-value" style="font-size:24px; font-weight:700; color:var(--accent); margin:2px 0;"></div>
+              <div style="font-size:10px; color:var(--muted);">Throughput change with Morphic Engine enabled</div>
+            </div>
+
+            <!-- Charts -->
+            <div class="panel" style="height:200px; flex:none;">
+              <div class="panel-title">Throughput Comparison</div>
+              <canvas id="bm-results-tp-chart"></canvas>
+            </div>
+            <div class="panel" style="height:200px; flex:none;">
+              <div class="panel-title">Latency Distribution</div>
+              <canvas id="bm-results-lat-chart"></canvas>
+            </div>
+            <div class="panel" style="height:200px; flex:none;">
+              <div class="panel-title">Entropy Over Time</div>
+              <canvas id="bm-results-ent-chart"></canvas>
+            </div>
           </div>
         </div>
       </section>
